@@ -84,7 +84,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAllOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost:5173")
+        policy.WithOrigins("http://localhost:5173", "http://fms.customs.gov.ng")
               .AllowAnyHeader()
               .AllowCredentials()
               .AllowAnyMethod();
