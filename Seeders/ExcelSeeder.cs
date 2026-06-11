@@ -1,7 +1,7 @@
 ﻿using ClosedXML.Excel;
 using Vehicle_Information_System.Models;
 
-namespace Vehicle_Information_System.SeedData
+namespace Vehicle_Information_System.Seeders
 {
     public static class VehicleAssessmentSeedData
     {

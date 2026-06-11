@@ -3,12 +3,11 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using Vehicle_Information_System.Dtos;
 using Vehicle_Information_System.Models;
 using Vehicle_Information_System.Services;
-using static Vehicle_Information_System.Controllers.UserController;
-
 
 namespace Vehicle_Information_System.Controllers
 {
@@ -16,350 +15,43 @@ namespace Vehicle_Information_System.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-
         private readonly ApplicationDbContext _context;
         private readonly TokenService _generateToken;
         private readonly IConfiguration _configuration;
-
         private readonly UserService _userService;
-     
-       
+        private readonly ILogger<AuthController> _logger;
 
-        public AuthController(ApplicationDbContext context,
-           IConfiguration configuration,
+        public AuthController(
+            ApplicationDbContext context,
+            IConfiguration configuration,
             UserService userService,
-            TokenService generateToken)
+            TokenService generateToken,
+            ILogger<AuthController> logger)
         {
-          
-        _userService = userService;
-           
+            _userService = userService;
             _configuration = configuration;
             _context = context;
             _generateToken = generateToken;
-           
+            _logger = logger;
         }
 
         [HttpGet]
         public IActionResult Index()
         {
-            var message = new { Text = "Welcome home!! API is working" }; // Returning an anonymous object as JSON
-            return Ok(message);  // 200 OK response with JSON content
+            var message = new { Text = "Welcome home!! API is working" };
+            return Ok(message);
         }
 
-
-        [HttpPost("debug-token-full")]
-        [AllowAnonymous]
-        public async Task<IActionResult> DebugTokenFull([FromHeader(Name = "Authorization")] string authorization)
-        {
-            try
-            {
-                Console.WriteLine("=== FULL TOKEN DEBUG ===");
-
-                // Check if authorization header exists
-                if (string.IsNullOrEmpty(authorization))
-                {
-                    return BadRequest(new { error = "No Authorization header" });
-                }
-
-                Console.WriteLine($"Authorization header: {authorization}");
-
-                // Extract token
-                var token = authorization.Replace("Bearer ", "").Trim();
-                Console.WriteLine($"Token extracted: {token.Substring(0, Math.Min(50, token.Length))}...");
-
-                // 1. Decode token without validation
-                var handler = new JwtSecurityTokenHandler();
-                JwtSecurityToken jwtToken;
-                try
-                {
-                    jwtToken = handler.ReadJwtToken(token);
-                    Console.WriteLine("Token decoded successfully");
-                    Console.WriteLine($"Token Issuer: {jwtToken.Issuer}");
-                    Console.WriteLine($"Token Audience: {string.Join(",", jwtToken.Audiences ?? new List<string>())}");
-                    Console.WriteLine($"Token Expiry: {jwtToken.ValidTo}");
-                    Console.WriteLine($"Token Claims: {string.Join(", ", jwtToken.Claims.Select(c => $"{c.Type}={c.Value}"))}");
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Failed to decode token: {ex.Message}");
-                    return BadRequest(new { error = $"Cannot decode token: {ex.Message}" });
-                }
-
-                Console.WriteLine("Decoded token successfully. Now validating...");
-                Console.WriteLine("=== VALIDATION PARAMETERS ===");
-                Console.WriteLine($"Token validation will be performed with the following parameters:");
-                Console.WriteLine(jwtToken);
-
-
-                // 2. Get validation parameters from your configuration
-                var secretKey = _configuration["Jwt:Secret"] ?? DotNetEnv.Env.GetString("Secret");
-                var issuer = _configuration["Jwt:Issuer"];
-                var audience = _configuration["Jwt:Audience"];
-
-                Console.WriteLine($"Validation parameters:");
-                Console.WriteLine($"  Expected Issuer: {issuer}");
-                Console.WriteLine($"  Expected Audience: {audience}");
-                Console.WriteLine($"  Secret loaded: {(string.IsNullOrEmpty(secretKey) ? "NO" : "YES")}");
-                Console.WriteLine($"  Secret length: {secretKey?.Length ?? 0}");
-
-                var key = Encoding.UTF8.GetBytes(secretKey);
-
-                var validationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = issuer,
-                    ValidAudience = audience,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ClockSkew = TimeSpan.Zero
-                };
-
-                // 3. Try to validate the token
-                try
-                {
-                    var principal = handler.ValidateToken(token, validationParameters, out var validatedToken);
-                    Console.WriteLine("✅ TOKEN VALIDATED SUCCESSFULLY!");
-
-                    return Ok(new
-                    {
-                        valid = true,
-                        message = "Token is valid",
-                        claims = principal.Claims.Select(c => new { c.Type, c.Value }),
-                        expiry = jwtToken.ValidTo
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"❌ Validation failed: {ex.Message}");
-                    Console.WriteLine($"Exception type: {ex.GetType().Name}");
-
-                    return BadRequest(new
-                    {
-                        valid = false,
-                        error = ex.Message,
-                        error_type = ex.GetType().Name,
-                        token_info = new
-                        {
-                            issuer_from_token = jwtToken.Issuer,
-                            audience_from_token = jwtToken.Audiences?.FirstOrDefault(),
-                            expected_issuer = issuer,
-                            expected_audience = audience,
-                            token_expiry = jwtToken.ValidTo,
-                            current_time = DateTime.UtcNow,
-                            is_expired = jwtToken.ValidTo < DateTime.UtcNow
-                        }
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Unexpected error: {ex.Message}");
-                return BadRequest(new { error = ex.Message });
-            }
-        }
-        [HttpPost("debug-validate-token")]
-        [AllowAnonymous]
-        public IActionResult DebugValidateToken([FromBody] string token)
-        {
-            try
-            {
-                Console.WriteLine("=== DEBUG VALIDATE TOKEN ===");
-                Console.WriteLine($"Token to validate: {token?.Substring(0, Math.Min(50, token?.Length ?? 0))}...");
-
-                var tokenHandler = new JwtSecurityTokenHandler();
-                var secretKey = DotNetEnv.Env.GetString("Secret") ?? _configuration["Jwt:Secret"];
-
-                Console.WriteLine($"Secret key used: {(string.IsNullOrEmpty(secretKey) ? "NULL" : "Loaded")}");
-                Console.WriteLine($"Secret key length: {secretKey?.Length ?? 0}");
-
-                var key = Encoding.UTF8.GetBytes(secretKey);
-
-                var validationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = _configuration["Jwt:Issuer"],
-                    ValidAudience = _configuration["Jwt:Audience"],
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ClockSkew = TimeSpan.Zero
-                };
-
-                try
-                {
-                    var principal = tokenHandler.ValidateToken(token, validationParameters, out var validatedToken);
-                    var jwtToken = validatedToken as JwtSecurityToken;
-
-                    return Ok(new
-                    {
-                        valid = true,
-                        claims = principal.Claims.Select(c => new { c.Type, c.Value }),
-                        expires = jwtToken?.ValidTo,
-                        issuer_match = jwtToken?.Issuer == _configuration["Jwt:Issuer"],
-                        audience_match = jwtToken?.Audiences?.Contains(_configuration["Jwt:Audience"]) ?? false
-                    });
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Validation failed: {ex.Message}");
-                    return BadRequest(new
-                    {
-                        valid = false,
-                        error = ex.Message,
-                        error_type = ex.GetType().Name
-                    });
-                }
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-        }
-        [HttpGet("debug-token-info")]
-        [AllowAnonymous]
-        public IActionResult DebugTokenInfo()
-        {
-            try
-            {
-                var secretFromEnv = DotNetEnv.Env.GetString("Secret");
-                var secretFromConfig = _configuration["Jwt:Secret"];
-                var issuer = _configuration["Jwt:Issuer"];
-                var audience = _configuration["Jwt:Audience"];
-
-                return Ok(new
-                {
-                    secret_from_env_exists = !string.IsNullOrEmpty(secretFromEnv),
-                    secret_from_config_exists = !string.IsNullOrEmpty(secretFromConfig),
-                    secret_length_env = secretFromEnv?.Length ?? 0,
-                    secret_length_config = secretFromConfig?.Length ?? 0,
-                    issuer = issuer,
-                    audience = audience,
-                    secrets_match = secretFromEnv == secretFromConfig,
-                    message = "Use this info to debug token issues"
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-        }
-
-
-        [HttpPost("generate-otp")]
-        public async Task<IActionResult> Login(AuthenticationDto userAuth)
-        {
-            if (userAuth == null || string.IsNullOrEmpty(userAuth.Email) || string.IsNullOrEmpty(userAuth.Password))
-            {
-                return BadRequest(new { message = "Invalid email or password." });
-            }
-
-            try
-            {
-                // Fetch the user by email
-                var user = await _context.Users.SingleOrDefaultAsync(u => u.Email == userAuth.Email);
-
-                if (user == null)
-                {
-                    // Avoid specifying whether the issue is with email or password
-                    return BadRequest(new { message = "Invalid credentials." });
-                }
-
-                // Verify the password using your password hashing mechanism
-                if (!VerifyPassword(userAuth.Password, user.Password))
-                {
-                    return BadRequest(new { message = "Invalid credentials." });
-                }
-
-                // Generate OTP
-             
-           
-
-
-                    return Ok(new
-                    {
-                        message = "OTP sent to your email"
-
-
-                    }
-                    );
-
-
-
-
-            }
-            catch (Exception ex)
-            {
-                // Log the exception (in real scenarios, use a logging framework like Serilog or NLog)
-                Console.WriteLine($"Login error: {ex.Message}");
-
-                // Avoid returning stack traces in production
-                return BadRequest(new { message = "An error occurred while processing your request." });
-            }
-        }
-
-
-    
         public class OtpVerificationDto
         {
             public string Email { get; set; }
             public string Password { get; set; }
-
-
+            public string UserType { get; set; } = "Fleet";
         }
 
-        [HttpGet("test-generate")]
-        [AllowAnonymous]
-        public IActionResult TestGenerate()
+        public class RefreshTokenRequest
         {
-            try
-            {
-                // Create a test user
-                var testUser = new User
-                {
-                    UserId = Guid.NewGuid(),
-                    Email = "test@example.com",
-                    AccessLevel = "admin"
-                };
-
-                // Generate token
-                var (accessToken, refreshToken) = _generateToken.GenerateNewToken(testUser);
-
-                // Decode and verify
-                var handler = new JwtSecurityTokenHandler();
-                var decoded = handler.ReadJwtToken(accessToken);
-
-                return Ok(new
-                {
-                    token = accessToken,
-                    decoded_issuer = decoded.Issuer,
-                    decoded_audience = decoded.Audiences?.FirstOrDefault(),
-                    decoded_claims = decoded.Claims.Select(c => new { c.Type, c.Value }),
-                    has_issuer = !string.IsNullOrEmpty(decoded.Issuer),
-                    has_audience = decoded.Audiences?.Any() == true
-                });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { error = ex.Message });
-            }
-        }
-        [HttpGet("check-config")]
-        [AllowAnonymous]
-        public IActionResult CheckConfig()
-        {
-            var issuer = _configuration["Jwt:Issuer"];
-            var audience = _configuration["Jwt:Audience"];
-            var secret = _configuration["Jwt:Secret"];
-
-            return Ok(new
-            {
-                issuer_from_config = issuer ?? "NULL",
-                audience_from_config = audience ?? "NULL",
-                secret_loaded = !string.IsNullOrEmpty(secret)
-            });
+            public string RefreshToken { get; set; }
         }
 
         [HttpPost("login")]
@@ -367,72 +59,413 @@ namespace Vehicle_Information_System.Controllers
         {
             try
             {
-                var user = await _context.Users
-                    .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                // Validate input
+                if (string.IsNullOrEmpty(otpVerification.Email) || string.IsNullOrEmpty(otpVerification.Password))
+                {
+                    return BadRequest(new { message = "Email and password are required" });
+                }
 
+                // Define variables
+                dynamic user = null;
+                string userType = otpVerification.UserType;
+                Guid Id = Guid.Empty;
+                string accessLevel = null;
+                string status = null;
+                string storedPassword = null;
+                string fullname = null;
+                string email = otpVerification.Email;
+
+                // Fetch user based on type
+                switch (otpVerification.UserType?.ToLower())
+                {
+                    case "fleet":
+                        var fleetUser = await _context.Users
+                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                        if (fleetUser != null)
+                        {
+                            user = fleetUser;
+                            Id = fleetUser.UserId;
+                            accessLevel = fleetUser.AccessLevel;
+                            status = fleetUser.Status;
+                            storedPassword = fleetUser.Password;
+                            fullname = fleetUser.Fullname;
+                            userType = "Fleet";
+                        }
+                        break;
+
+                    case "store":
+                        var storeUser = await _context.StoreUsers
+                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                        if (storeUser != null)
+                        {
+                            user = storeUser;
+                            Id = storeUser.UserId;
+                            accessLevel = storeUser.AccessLevel;
+                            status = storeUser.Status;
+                            storedPassword = storeUser.Password;
+                            fullname = storeUser.Fullname;
+                            userType = "Store";
+                        }
+                        break;
+
+                    case "accommodation":
+                        var accommodationUser = await _context.AccomodationUsers
+                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                        if (accommodationUser != null)
+                        {
+                            user = accommodationUser;
+                            Id = accommodationUser.UserId;
+                            accessLevel = accommodationUser.AccessLevel;
+                            status = accommodationUser.Status;
+                            storedPassword = accommodationUser.Password;
+                            fullname = accommodationUser.Fullname;
+                            userType = "Accommodation";
+                        }
+                        break;
+
+                    case "asset":
+                        var assetUser = await _context.AssetUsers
+                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                        if (assetUser != null)
+                        {
+                            user = assetUser;
+                            Id = assetUser.UserId;
+                            accessLevel = assetUser.AccessLevel;
+                            status = assetUser.Status;
+                            storedPassword = assetUser.Password;
+                            fullname = assetUser.Fullname;
+                            userType = "Asset";
+                        }
+                        break;
+
+                    default:
+                        return BadRequest(new { message = "Invalid user type specified. Must be Fleet, Store, Accommodation, or Asset" });
+                }
+
+                // Check if user exists
                 if (user == null)
-                    return BadRequest(new { message = "Invalid credentials" });
+                {
+                    _logger.LogWarning("Login attempt failed: User not found for email {Email}", otpVerification.Email);
+                    return BadRequest(new { message = "Invalid email or password" });
+                }
 
-                if (user.Status != "Active")
-                    return BadRequest(new { message = "Account is inactive" });
+                // Check account status
+                if (status != "Active")
+                {
+                    _logger.LogWarning("Login attempt failed: Account {Email} is {Status}", otpVerification.Email, status);
+                    return Unauthorized(new { message = $"Account is {status?.ToLower()}. Please contact support." });
+                }
 
-                if (!VerifyPassword(otpVerification.Password, user.Password))
-                    return BadRequest(new { message = "Invalid credentials" });
+                // Verify password
+                if (!VerifyPassword(otpVerification.Password, storedPassword))
+                {
+                    _logger.LogWarning("Login attempt failed: Invalid password for {Email}", otpVerification.Email);
+                    return Unauthorized(new { message = "Invalid email or password" });
+                }
 
-                // Generate tokens
-                var (accessToken, refreshToken) = _generateToken.GenerateNewToken(user);
+                // Generate tokens - FIXED: Don't try to deconstruct dynamic
+                string accessToken;
+                string refreshToken;
+
+                if (userType == "Fleet")
+                {
+                    var tokens = _generateToken.GenerateNewToken((User)user);
+                    accessToken = tokens.AccessToken;
+                    refreshToken = tokens.RefreshToken;
+                }
+                else if (userType == "Store")
+                {
+                    var tokens = _generateToken.GenerateStoreToken((StoreUser)user);
+                    accessToken = tokens.AccessToken;
+                    refreshToken = tokens.RefreshToken;
+                }
+                else if (userType == "Accommodation")
+                {
+                    var tokens = _generateToken.GenerateAccommodationToken((AccomodationUser)user);
+                    accessToken = tokens.AccessToken;
+                    refreshToken = tokens.RefreshToken;
+                }
+                else if (userType == "Asset")
+                {
+                    var tokens = _generateToken.GenerateAssetToken((AssetUser)user);
+                    accessToken = tokens.AccessToken;
+                    refreshToken = tokens.RefreshToken;
+                }
+                else
+                {
+                    return BadRequest(new { message = "Invalid user type" });
+                }
 
                 // Save refresh token to database
-                user.RefreshToken = refreshToken;
-                user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-                await _context.SaveChangesAsync();
+                await SaveRefreshToken(user, userType, refreshToken);
+
+                _logger.LogInformation("User logged in successfully: {Email} ({UserType})", otpVerification.Email, userType);
 
                 return Ok(new
                 {
                     message = "Login successful",
                     user_token = accessToken,
                     refresh_token = refreshToken,
-                    user_access_level = user.AccessLevel,
-                    id = user.UserId
+                    user_type = userType,
+                    user_access_level = accessLevel,
+                    id = Id,
+                    email = otpVerification.Email,
+                    fullname = fullname
                 });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                _logger.LogError(ex, "Error during login for email {Email}", otpVerification.Email);
+                return StatusCode(500, new { message = "An error occurred during login. Please try again later." });
             }
         }
 
         [HttpPost("refresh-token")]
         public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request)
         {
-            var user = await _userService.GetUserByRefreshToken(request.RefreshToken);
-            if (user == null || user.RefreshTokenExpiryTime <= DateTime.UtcNow)
+            if (request == null || string.IsNullOrEmpty(request.RefreshToken))
             {
-                return Unauthorized("Invalid or expired refresh token");
+                return BadRequest(new { message = "Refresh token is required" });
             }
 
-            var tokens = _generateToken.GenerateNewToken(user);
-
-            // Update user's refresh token
-            user.RefreshToken = tokens.RefreshToken;
-            user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
-            await _userService.UpdateUserAsync(user);
-
-            return Ok(new
+            try
             {
-                AccessToken = tokens.AccessToken,
-                RefreshToken = tokens.RefreshToken
-            });
+                // Search for refresh token across all user tables
+                var (user, userType) = await GetUserByRefreshToken(request.RefreshToken);
+
+                if (user == null)
+                {
+                    return Unauthorized(new { message = "Invalid refresh token" });
+                }
+
+                var refreshTokenExpiry = GetRefreshTokenExpiry(user, userType);
+                if (refreshTokenExpiry <= DateTime.UtcNow)
+                {
+                    return Unauthorized(new { message = "Refresh token has expired" });
+                }
+
+                // Generate new tokens
+                var (accessToken, refreshToken) = GenerateTokenForUserType(user, userType);
+
+                // Update refresh token in database
+                await UpdateRefreshToken(user, userType, refreshToken);
+
+                _logger.LogInformation("Token refreshed successfully for user type {UserType}", userType);
+
+                return Ok(new
+                {
+                    access_token = accessToken,
+                    refresh_token = refreshToken
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during token refresh");
+                return StatusCode(500, new { message = "An error occurred while refreshing token" });
+            }
         }
 
+        [HttpPost("logout")]
+        [Authorize]
+        public async Task<IActionResult> Logout()
+        {
+            try
+            {
+                // Get user email from claims
+                var email = User.FindFirst(ClaimTypes.Email)?.Value;
+                var userType = User.FindFirst("UserType")?.Value;
+
+                if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(userType))
+                {
+                    return BadRequest(new { message = "Unable to identify user" });
+                }
+
+                // Clear refresh token
+                await ClearRefreshToken(email, userType);
+
+                _logger.LogInformation("User logged out: {Email}", email);
+                return Ok(new { message = "Logged out successfully" });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error during logout");
+                return StatusCode(500, new { message = "An error occurred during logout" });
+            }
+        }
+
+        // Helper Methods
+
+        private (string AccessToken, string RefreshToken) GenerateTokenForUserType(object user, string userType)
+        {
+            return userType switch
+            {
+                "Fleet" => _generateToken.GenerateNewToken((User)user),
+                "Store" => _generateToken.GenerateStoreToken((StoreUser)user),
+                "Accommodation" => _generateToken.GenerateAccommodationToken((AccomodationUser)user),
+                "Asset" => _generateToken.GenerateAssetToken((AssetUser)user),
+                _ => throw new ArgumentException($"Invalid user type: {userType}")
+            };
+        }
+
+        private async Task SaveRefreshToken(dynamic user, string userType, string refreshToken)
+        {
+            switch (userType)
+            {
+                case "Fleet":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.Users.Update(user);
+                    break;
+                case "Store":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.StoreUsers.Update(user);
+                    break;
+                case "Accommodation":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.AccomodationUsers.Update(user);
+                    break;
+                case "Asset":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.AssetUsers.Update(user);
+                    break;
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task UpdateRefreshToken(dynamic user, string userType, string refreshToken)
+        {
+            switch (userType)
+            {
+                case "Fleet":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.Users.Update(user);
+                    break;
+                case "Store":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.StoreUsers.Update(user);
+                    break;
+                case "Accommodation":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.AccomodationUsers.Update(user);
+                    break;
+                case "Asset":
+                    user.RefreshToken = refreshToken;
+                    user.RefreshTokenExpiryTime = DateTime.UtcNow.AddDays(7);
+                    _context.AssetUsers.Update(user);
+                    break;
+            }
+            await _context.SaveChangesAsync();
+        }
+
+        private async Task ClearRefreshToken(string email, string userType)
+        {
+            switch (userType)
+            {
+                case "Fleet":
+                    var fleetUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                    if (fleetUser != null)
+                    {
+                        fleetUser.RefreshToken = null;
+                        fleetUser.RefreshTokenExpiryTime = null;
+                        await _context.SaveChangesAsync();
+                    }
+                    break;
+                case "Store":
+                    var storeUser = await _context.StoreUsers.FirstOrDefaultAsync(u => u.Email == email);
+                    if (storeUser != null)
+                    {
+                        storeUser.RefreshToken = null;
+                        storeUser.RefreshTokenExpiryTime = null;
+                        await _context.SaveChangesAsync();
+                    }
+                    break;
+                case "Accommodation":
+                    var accommodationUser = await _context.AccomodationUsers.FirstOrDefaultAsync(u => u.Email == email);
+                    if (accommodationUser != null)
+                    {
+                        accommodationUser.RefreshToken = null;
+                        accommodationUser.RefreshTokenExpiryTime = null;
+                        await _context.SaveChangesAsync();
+                    }
+                    break;
+                case "Asset":
+                    var assetUser = await _context.AssetUsers.FirstOrDefaultAsync(u => u.Email == email);
+                    if (assetUser != null)
+                    {
+                        assetUser.RefreshToken = null;
+                        assetUser.RefreshTokenExpiryTime = null;
+                        await _context.SaveChangesAsync();
+                    }
+                    break;
+            }
+        }
+
+        private async Task<(object User, string UserType)> GetUserByRefreshToken(string refreshToken)
+        {
+            // Check Fleet users
+            var fleetUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+            if (fleetUser != null)
+                return (fleetUser, "Fleet");
+
+            // Check Store users
+            var storeUser = await _context.StoreUsers
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+            if (storeUser != null)
+                return (storeUser, "Store");
+
+            // Check Accommodation users
+            var accommodationUser = await _context.AccomodationUsers
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+            if (accommodationUser != null)
+                return (accommodationUser, "Accommodation");
+
+            // Check Asset users
+            var assetUser = await _context.AssetUsers
+                .FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
+            if (assetUser != null)
+                return (assetUser, "Asset");
+
+            return (null, null);
+        }
+
+        private DateTime GetRefreshTokenExpiry(dynamic user, string userType)
+        {
+            return userType switch
+            {
+                "Fleet" => ((User)user).RefreshTokenExpiryTime ?? DateTime.UtcNow,
+                "Store" => ((StoreUser)user).RefreshTokenExpiryTime ?? DateTime.UtcNow,
+                "Accommodation" => ((AccomodationUser)user).RefreshTokenExpiryTime ?? DateTime.UtcNow,
+                "Asset" => ((AssetUser)user).RefreshTokenExpiryTime ?? DateTime.UtcNow,
+                _ => DateTime.UtcNow
+            };
+        }
+
+        private string GetUserFullName(dynamic user, string userType)
+        {
+            return userType switch
+            {
+                "Fleet" => ((User)user).Fullname,
+                "Store" => ((StoreUser)user).Fullname,
+                "Accommodation" => ((AccomodationUser)user).Fullname,
+                "Asset" => ((AssetUser)user).Fullname,
+                _ => null
+            };
+        }
 
         private bool VerifyPassword(string inputPassword, string storedHashedPassword)
         {
-            // Replace with actual hashing comparison (e.g., BCrypt or Argon2)
+            if (string.IsNullOrEmpty(inputPassword) || string.IsNullOrEmpty(storedHashedPassword))
+                return false;
+
             var hashInputPassword = _generateToken.HashPassword(inputPassword);
             return hashInputPassword == storedHashedPassword;
-            
         }
-       
     }
 }

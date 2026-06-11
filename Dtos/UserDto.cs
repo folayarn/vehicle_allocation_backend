@@ -20,6 +20,9 @@ namespace Vehicle_Information_System.Dtos
 
         [Required]
         public string Command{ get; set; }
+
+        [Required]
+        public string UserType { get; set; } = "Fleet";
        
         public Guid? OfficerId { get; set; }
 
