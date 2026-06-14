@@ -216,7 +216,7 @@ namespace Vehicle_Information_System.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error during login for email {Email}", otpVerification.Email);
-                return StatusCode(500, new { message = "An error occurred during login. Please try again later." });
+                return StatusCode(500, new { message = $"An error occurred during login. Please try again later. {ex.StackTrace}" });
             }
         }
 
