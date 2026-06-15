@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -57,167 +58,208 @@ namespace Vehicle_Information_System.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] OtpVerificationDto otpVerification)
         {
-            try
+            // Add retry counter
+            int retryCount = 0;
+            const int maxRetries = 3;
+            Exception lastException = null;
+
+            while (retryCount < maxRetries)
             {
-                // Validate input
-                if (string.IsNullOrEmpty(otpVerification.Email) || string.IsNullOrEmpty(otpVerification.Password))
+                try
                 {
-                    return BadRequest(new { message = "Email and password are required" });
+                    // Validate input
+                    if (string.IsNullOrEmpty(otpVerification.Email) || string.IsNullOrEmpty(otpVerification.Password))
+                    {
+                        return BadRequest(new { message = "Email and password are required" });
+                    }
+
+                    // Define variables
+                    dynamic user = null;
+                    string userType = otpVerification.UserType;
+                    Guid Id = Guid.Empty;
+                    string accessLevel = null;
+                    string status = null;
+                    string storedPassword = null;
+                    string fullname = null;
+                    string email = otpVerification.Email;
+
+                    // Fetch user based on type
+                    switch (otpVerification.UserType?.ToLower())
+                    {
+                        case "fleet":
+                            var fleetUser = await _context.Users
+                                .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                            if (fleetUser != null)
+                            {
+                                user = fleetUser;
+                                Id = fleetUser.UserId;
+                                accessLevel = fleetUser.AccessLevel;
+                                status = fleetUser.Status;
+                                storedPassword = fleetUser.Password;
+                                fullname = fleetUser.Fullname;
+                                userType = "Fleet";
+                            }
+                            break;
+
+                        case "store":
+                            var storeUser = await _context.StoreUsers
+                                .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                            if (storeUser != null)
+                            {
+                                user = storeUser;
+                                Id = storeUser.UserId;
+                                accessLevel = storeUser.AccessLevel;
+                                status = storeUser.Status;
+                                storedPassword = storeUser.Password;
+                                fullname = storeUser.Fullname;
+                                userType = "Store";
+                            }
+                            break;
+
+                        case "accommodation":
+                            var accommodationUser = await _context.AccomodationUsers
+                                .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                            if (accommodationUser != null)
+                            {
+                                user = accommodationUser;
+                                Id = accommodationUser.UserId;
+                                accessLevel = accommodationUser.AccessLevel;
+                                status = accommodationUser.Status;
+                                storedPassword = accommodationUser.Password;
+                                fullname = accommodationUser.Fullname;
+                                userType = "Accommodation";
+                            }
+                            break;
+
+                        case "asset":
+                            var assetUser = await _context.AssetUsers
+                                .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
+                            if (assetUser != null)
+                            {
+                                user = assetUser;
+                                Id = assetUser.UserId;
+                                accessLevel = assetUser.AccessLevel;
+                                status = assetUser.Status;
+                                storedPassword = assetUser.Password;
+                                fullname = assetUser.Fullname;
+                                userType = "Asset";
+                            }
+                            break;
+
+                        default:
+                            return BadRequest(new { message = "Invalid user type specified. Must be Fleet, Store, Accommodation, or Asset" });
+                    }
+
+                    // Check if user exists
+                    if (user == null)
+                    {
+                        _logger.LogWarning("Login attempt failed: User not found for email {Email}", otpVerification.Email);
+                        return BadRequest(new { message = "Invalid email or password" });
+                    }
+
+                    // Check account status
+                    if (status != "Active")
+                    {
+                        _logger.LogWarning("Login attempt failed: Account {Email} is {Status}", otpVerification.Email, status);
+                        return Unauthorized(new { message = $"Account is {status?.ToLower()}. Please contact support." });
+                    }
+
+                    // Verify password
+                    if (!VerifyPassword(otpVerification.Password, storedPassword))
+                    {
+                        _logger.LogWarning("Login attempt failed: Invalid password for {Email}", otpVerification.Email);
+                        return Unauthorized(new { message = "Invalid email or password" });
+                    }
+
+                    // Generate tokens - FIXED: Don't try to deconstruct dynamic
+                    string accessToken;
+                    string refreshToken;
+
+                    if (userType == "Fleet")
+                    {
+                        var tokens = _generateToken.GenerateNewToken((User)user);
+                        accessToken = tokens.AccessToken;
+                        refreshToken = tokens.RefreshToken;
+                    }
+                    else if (userType == "Store")
+                    {
+                        var tokens = _generateToken.GenerateStoreToken((StoreUser)user);
+                        accessToken = tokens.AccessToken;
+                        refreshToken = tokens.RefreshToken;
+                    }
+                    else if (userType == "Accommodation")
+                    {
+                        var tokens = _generateToken.GenerateAccommodationToken((AccomodationUser)user);
+                        accessToken = tokens.AccessToken;
+                        refreshToken = tokens.RefreshToken;
+                    }
+                    else if (userType == "Asset")
+                    {
+                        var tokens = _generateToken.GenerateAssetToken((AssetUser)user);
+                        accessToken = tokens.AccessToken;
+                        refreshToken = tokens.RefreshToken;
+                    }
+                    else
+                    {
+                        return BadRequest(new { message = "Invalid user type" });
+                    }
+
+                    // Save refresh token to database
+                    await SaveRefreshToken(user, userType, refreshToken);
+
+                    _logger.LogInformation("User logged in successfully: {Email} ({UserType})", otpVerification.Email, userType);
+
+                    return Ok(new
+                    {
+                        message = "Login successful",
+                        user_token = accessToken,
+                        refresh_token = refreshToken,
+                        user_type = userType,
+                        user_access_level = accessLevel,
+                        id = Id,
+                        email = otpVerification.Email,
+                        fullname = fullname
+                    });
                 }
-
-                // Define variables
-                dynamic user = null;
-                string userType = otpVerification.UserType;
-                Guid Id = Guid.Empty;
-                string accessLevel = null;
-                string status = null;
-                string storedPassword = null;
-                string fullname = null;
-                string email = otpVerification.Email;
-
-                // Fetch user based on type
-                switch (otpVerification.UserType?.ToLower())
+                catch (NpgsqlException ex) when (ex.IsTransient || ex.Message.Contains("ReadMessageLong"))
                 {
-                    case "fleet":
-                        var fleetUser = await _context.Users
-                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
-                        if (fleetUser != null)
-                        {
-                            user = fleetUser;
-                            Id = fleetUser.UserId;
-                            accessLevel = fleetUser.AccessLevel;
-                            status = fleetUser.Status;
-                            storedPassword = fleetUser.Password;
-                            fullname = fleetUser.Fullname;
-                            userType = "Fleet";
-                        }
-                        break;
+                    lastException = ex;
+                    retryCount++;
 
-                    case "store":
-                        var storeUser = await _context.StoreUsers
-                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
-                        if (storeUser != null)
-                        {
-                            user = storeUser;
-                            Id = storeUser.UserId;
-                            accessLevel = storeUser.AccessLevel;
-                            status = storeUser.Status;
-                            storedPassword = storeUser.Password;
-                            fullname = storeUser.Fullname;
-                            userType = "Store";
-                        }
-                        break;
+                    _logger.LogWarning(ex, "Database connection error during login (Attempt {RetryCount}/{MaxRetries}) for email {Email}. Error: {ErrorMessage}",
+                        retryCount, maxRetries, otpVerification.Email, ex.Message);
 
-                    case "accommodation":
-                        var accommodationUser = await _context.AccomodationUsers
-                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
-                        if (accommodationUser != null)
-                        {
-                            user = accommodationUser;
-                            Id = accommodationUser.UserId;
-                            accessLevel = accommodationUser.AccessLevel;
-                            status = accommodationUser.Status;
-                            storedPassword = accommodationUser.Password;
-                            fullname = accommodationUser.Fullname;
-                            userType = "Accommodation";
-                        }
-                        break;
-
-                    case "asset":
-                        var assetUser = await _context.AssetUsers
-                            .FirstOrDefaultAsync(u => u.Email == otpVerification.Email);
-                        if (assetUser != null)
-                        {
-                            user = assetUser;
-                            Id = assetUser.UserId;
-                            accessLevel = assetUser.AccessLevel;
-                            status = assetUser.Status;
-                            storedPassword = assetUser.Password;
-                            fullname = assetUser.Fullname;
-                            userType = "Asset";
-                        }
-                        break;
-
-                    default:
-                        return BadRequest(new { message = "Invalid user type specified. Must be Fleet, Store, Accommodation, or Asset" });
+                    if (retryCount < maxRetries)
+                    {
+                        // Exponential backoff: 100ms, 200ms, 400ms
+                        int delayMs = 100 * (int)Math.Pow(2, retryCount - 1);
+                        await Task.Delay(delayMs);
+                    }
                 }
+                catch (TimeoutException ex)
+                {
+                    lastException = ex;
+                    retryCount++;
 
-                // Check if user exists
-                if (user == null)
-                {
-                    _logger.LogWarning("Login attempt failed: User not found for email {Email}", otpVerification.Email);
-                    return BadRequest(new { message = "Invalid email or password" });
-                }
+                    _logger.LogWarning(ex, "Timeout error during login (Attempt {RetryCount}/{MaxRetries}) for email {Email}",
+                        retryCount, maxRetries, otpVerification.Email);
 
-                // Check account status
-                if (status != "Active")
-                {
-                    _logger.LogWarning("Login attempt failed: Account {Email} is {Status}", otpVerification.Email, status);
-                    return Unauthorized(new { message = $"Account is {status?.ToLower()}. Please contact support." });
+                    if (retryCount < maxRetries)
+                    {
+                        await Task.Delay(100);
+                    }
                 }
-
-                // Verify password
-                if (!VerifyPassword(otpVerification.Password, storedPassword))
+                catch (Exception ex)
                 {
-                    _logger.LogWarning("Login attempt failed: Invalid password for {Email}", otpVerification.Email);
-                    return Unauthorized(new { message = "Invalid email or password" });
+                    // Non-transient error - log and return immediately
+                    _logger.LogError(ex, "Non-transient error during login for email {Email}", otpVerification.Email);
+                    return StatusCode(500, new { message = $"An error occurred during login. Please try again later. {ex.Message}" });
                 }
-
-                // Generate tokens - FIXED: Don't try to deconstruct dynamic
-                string accessToken;
-                string refreshToken;
-
-                if (userType == "Fleet")
-                {
-                    var tokens = _generateToken.GenerateNewToken((User)user);
-                    accessToken = tokens.AccessToken;
-                    refreshToken = tokens.RefreshToken;
-                }
-                else if (userType == "Store")
-                {
-                    var tokens = _generateToken.GenerateStoreToken((StoreUser)user);
-                    accessToken = tokens.AccessToken;
-                    refreshToken = tokens.RefreshToken;
-                }
-                else if (userType == "Accommodation")
-                {
-                    var tokens = _generateToken.GenerateAccommodationToken((AccomodationUser)user);
-                    accessToken = tokens.AccessToken;
-                    refreshToken = tokens.RefreshToken;
-                }
-                else if (userType == "Asset")
-                {
-                    var tokens = _generateToken.GenerateAssetToken((AssetUser)user);
-                    accessToken = tokens.AccessToken;
-                    refreshToken = tokens.RefreshToken;
-                }
-                else
-                {
-                    return BadRequest(new { message = "Invalid user type" });
-                }
-
-                // Save refresh token to database
-                await SaveRefreshToken(user, userType, refreshToken);
-
-                _logger.LogInformation("User logged in successfully: {Email} ({UserType})", otpVerification.Email, userType);
-
-                return Ok(new
-                {
-                    message = "Login successful",
-                    user_token = accessToken,
-                    refresh_token = refreshToken,
-                    user_type = userType,
-                    user_access_level = accessLevel,
-                    id = Id,
-                    email = otpVerification.Email,
-                    fullname = fullname
-                });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error during login for email {Email}", otpVerification.Email);
-                return StatusCode(500, new { message = $"An error occurred during login. Please try again later. {ex.StackTrace}" });
-            }
+
+            // All retries failed
+            _logger.LogError(lastException, "Login failed after {MaxRetries} retries for email {Email}", maxRetries, otpVerification.Email);
+            return StatusCode(503, new { message = "Service temporarily unavailable. Please try again in a few moments." });
         }
 
         [HttpPost("refresh-token")]
