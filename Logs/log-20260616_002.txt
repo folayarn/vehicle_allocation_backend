@@ -1,0 +1,13 @@
+2026-06-16 20:34:04.047 +01:00 [INF] Starting Vehicle Information System API {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:04.113 +01:00 [INF] Environment: Development {"Application":"VehicleInformationSystem"}
+2026-06-16 20:34:04.237 +01:00 [DBG] Secret loaded: YES {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:04.241 +01:00 [DBG] Secret length: 47 {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:04.246 +01:00 [DBG] Secret first 10 chars: YourSuperS {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:04.387 +01:00 [INF] Testing database connection... {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.024 +01:00 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development. {"EventId":{"Id":10400,"Name":"Microsoft.EntityFrameworkCore.Infrastructure.SensitiveDataLoggingEnabledWarning"},"SourceContext":"Microsoft.EntityFrameworkCore.Model.Validation","Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.564 +01:00 [INF] ✓ Database connection successful! {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.622 +01:00 [INF] Application started successfully {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.633 +01:00 [WRN] MaintenanceBackgroundService CONSTRUCTOR CALLED {"SourceContext":"Vehicle_Information_System.Services.MaintenanceBackgroundService","Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.652 +01:00 [WRN] MaintenanceBackgroundService STARTING {"SourceContext":"Vehicle_Information_System.Services.MaintenanceBackgroundService","Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.657 +01:00 [WRN] MaintenanceBackgroundService EXECUTE ASYNC STARTED {"SourceContext":"Vehicle_Information_System.Services.MaintenanceBackgroundService","Application":"VehicleInformationSystem","Environment":"Development"}
+2026-06-16 20:34:06.688 +01:00 [WRN] Overriding address(es) 'http://0.0.0.0:7119'. Binding to endpoints defined via IConfiguration and/or UseKestrel() instead. {"SourceContext":"Microsoft.AspNetCore.Server.Kestrel","Application":"VehicleInformationSystem","Environment":"Development"}
