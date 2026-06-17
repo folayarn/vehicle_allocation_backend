@@ -201,7 +201,7 @@ namespace Vehicle_Information_System.Controllers
         [HttpGet("get-all/{UserId}")]
         public async Task<ActionResult<IEnumerable<VehicleAssessment>>> GetVehicleAssessments([FromRoute] Guid UserId, [FromQuery] ServerTableRequest request)
         {
-            var query = _context.VehicleAssessments.Where(r => r.Condition == "SERVICEABLE").AsQueryable();
+            var query = _context.VehicleAssessments.AsQueryable();
 
             var user = await _context.Users.FindAsync(UserId);
             if (user == null)
@@ -265,18 +265,210 @@ namespace Vehicle_Information_System.Controllers
             }
 
             // Apply search functionality
+            // Apply search functionality
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 query = query.Where(v =>
-                    v.RegistrationNumber.Contains(request.Search) ||
-                    v.ChassisNumber.Contains(request.Search) ||
-                    v.VehicleTypeModel.Contains(request.Search) ||
-                    v.EngineNumber.Contains(request.Search) ||
-                    v.VehicleLocation.Contains(request.Search) ||
-                    v.Command.Contains(request.Search) ||
-                    v.Zone.Contains(request.Search) ||
-                    v.Condition.Contains(request.Search) ||
-                    v.Remark.Contains(request.Search)
+                    v.RegistrationNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.ChassisNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleTypeModel.Contains(request.Search.ToLower()) ||
+                    v.EngineNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleLocation.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Command.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Zone.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Condition.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Remark.ToLower().Contains(request.Search.ToLower())
+                );
+            }
+
+            // Apply date range filter
+            if (request.StartDate.HasValue)
+            {
+                query = query.Where(v => v.CreatedAt >= request.StartDate.Value);
+            }
+            if (request.EndDate.HasValue)
+            {
+                var endDate = request.EndDate.Value.Date.AddDays(1);
+                query = query.Where(v => v.CreatedAt < endDate);
+            }
+
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(request.SortBy))
+            {
+                query = request.SortOrder?.ToLower() == "desc"
+                    ? query.OrderByDescending(r => EF.Property<object>(r, request.SortBy))
+                    : query.OrderBy(r => EF.Property<object>(r, request.SortBy));
+            }
+            else
+            {
+                query = query.OrderByDescending(v => v.CreatedAt);
+            }
+
+            // Apply pagination
+            var totalRecords = await query.CountAsync();
+            var vehicles = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                data = vehicles,
+                totalCount = totalRecords,
+                page = request.Page,
+                pageSize = request.PageSize,
+                totalPages = (int)Math.Ceiling(totalRecords / (double)request.PageSize)
+            });
+        }
+        // GET: api/VehicleAssessment
+        [HttpGet("get-all/serviceable/{UserId}")]
+        public async Task<ActionResult<IEnumerable<VehicleAssessment>>> GetSevceableVehicleAssessments([FromRoute] Guid UserId, [FromQuery] ServerTableRequest request)
+        {
+            var query = _context.VehicleAssessments.Where(r => r.Condition == "SERVICEABLE").AsQueryable();
+
+            var user = await _context.Users.FindAsync(UserId);
+            if (user == null)
+            {
+                return NotFound(new { message = $"User with ID {UserId} not found." });
+            }
+
+            if (user.AccessLevel == "view")
+            {
+                query = query.Where(v => v.Command.Contains(user.Command));
+            }
+            else if (user.AccessLevel == "driver")
+            {
+                // Step 1: Get the list of Drivers with the specified serNo
+                var drivers = await _context.Drivers
+                    .Where(d => d.SerNo == user.Svn)
+                    .ToListAsync();
+                // Step 2: Get the list of VehicleIds from those drivers
+                var vehicleIds = drivers
+                    .Select(d => d.VehicleId)
+                    .Distinct() // In case duplicate VehicleIds exist
+                    .ToList();
+                Console.WriteLine(vehicleIds.Count);
+
+                // Step 3: Get the VehicleAssessments by the VehicleIds
+                query = query.Where(v => vehicleIds.Contains(v.Id) && v.Command.Contains(user.Command));
+
+                // REMOVED: .ToList() and Console.WriteLine - these break the IQueryable
+            }
+            else if (user.AccessLevel == "chief_driver_com")
+            {
+                // Step 1: Get the list of Drivers with the specified serNo
+
+
+                var officer = _context.Users.Where(r => r.Command.Contains(user.Command)).ToList();
+
+                var serNoList = officer.Select(d => d.Svn).ToList();
+                var drivers = await _context.Drivers
+                    .Where(d => serNoList.Contains(d.SerNo))
+                    .ToListAsync();
+                // Step 2: Get the list of VehicleIds from those drivers
+                var vehicleIds = drivers
+                    .Select(d => d.VehicleId)
+                    .Distinct() // In case duplicate VehicleIds exist
+                    .ToList();
+
+
+                // Step 3: Get the VehicleAssessments by the VehicleIds
+                query = query.Where(v => vehicleIds.Contains(v.Id) && v.Command.Contains(user.Command));
+
+                // REMOVED: .ToList() and Console.WriteLine - these break the IQueryable
+            }
+            else if (user.AccessLevel == "zone")
+            {
+                query = query.Where(v => v.Zone == user.Zone);
+            }
+            else if (user.AccessLevel == "mechanic")
+            {
+                query = query.Where(r => r.Command.Contains(user.Command));
+
+            }
+
+            // Apply search functionality
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                query = query.Where(v =>
+                    v.RegistrationNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.ChassisNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleTypeModel.Contains(request.Search.ToLower()) ||
+                    v.EngineNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleLocation.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Command.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Zone.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Condition.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Remark.ToLower().Contains(request.Search.ToLower())
+                );
+            }
+            // Apply date range filter
+            if (request.StartDate.HasValue)
+            {
+                query = query.Where(v => v.CreatedAt >= request.StartDate.Value);
+            }
+            if (request.EndDate.HasValue)
+            {
+                var endDate = request.EndDate.Value.Date.AddDays(1);
+                query = query.Where(v => v.CreatedAt < endDate);
+            }
+
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(request.SortBy))
+            {
+                query = request.SortOrder?.ToLower() == "desc"
+                    ? query.OrderByDescending(r => EF.Property<object>(r, request.SortBy))
+                    : query.OrderBy(r => EF.Property<object>(r, request.SortBy));
+            }
+            else
+            {
+                query = query.OrderByDescending(v => v.CreatedAt);
+            }
+
+            // Apply pagination
+            var totalRecords = await query.CountAsync();
+            var vehicles = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync();
+
+            return Ok(new
+            {
+                data = vehicles,
+                totalCount = totalRecords,
+                page = request.Page,
+                pageSize = request.PageSize,
+                totalPages = (int)Math.Ceiling(totalRecords / (double)request.PageSize)
+            });
+        }
+
+
+        // GET: api/VehicleAssessment
+        [HttpGet("get-all/allocated/{UserId}")]
+        public async Task<ActionResult<IEnumerable<VehicleAssessment>>> GetAllocatedVehicleAssessments([FromRoute] Guid UserId, [FromQuery] ServerTableRequest request)
+        {
+            var query = _context.VehicleAssessments.Where(r => r.Condition == "SERVICEABLE").AsQueryable();
+            var allo = _context.Allocations.Select(d => d.VehicleId)
+                    .Distinct().AsQueryable();
+
+            query = query.Where(v => allo.Contains(v.Id));
+
+            var user = await _context.Users.FindAsync(UserId);
+
+
+            // Apply search functionality
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                query = query.Where(v =>
+                    v.RegistrationNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.ChassisNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleTypeModel.Contains(request.Search.ToLower()) ||
+                    v.EngineNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleLocation.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Command.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Zone.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Condition.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Remark.ToLower().Contains(request.Search.ToLower())
                 );
             }
 
@@ -393,15 +585,15 @@ namespace Vehicle_Information_System.Controllers
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 query = query.Where(v =>
-                    v.RegistrationNumber.Contains(request.Search) ||
-                    v.ChassisNumber.Contains(request.Search) ||
-                    v.VehicleTypeModel.Contains(request.Search) ||
-                    v.EngineNumber.Contains(request.Search) ||
-                    v.VehicleLocation.Contains(request.Search) ||
-                    v.Command.Contains(request.Search) ||
-                    v.Zone.Contains(request.Search) ||
-                    v.Condition.Contains(request.Search) ||
-                    v.Remark.Contains(request.Search)
+                    v.RegistrationNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.ChassisNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleTypeModel.Contains(request.Search.ToLower()) ||
+                    v.EngineNumber.ToLower().Contains(request.Search.ToLower()) ||
+                    v.VehicleLocation.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Command.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Zone.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Condition.ToLower().Contains(request.Search.ToLower()) ||
+                    v.Remark.ToLower().Contains(request.Search.ToLower())
                 );
             }
 
