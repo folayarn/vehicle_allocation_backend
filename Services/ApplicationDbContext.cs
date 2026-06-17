@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Serilog;
 using Vehicle_Information_System.Models;
 using Vehicle_Information_System.Seeders;
 
@@ -155,117 +156,118 @@ namespace Vehicle_Information_System.Services
         private void SeedAllAssets(ModelBuilder modelBuilder)
         {
             var allAssets = new List<Asset>();
-           
 
-            // Seed Project/Construction assets
-            try
-            {
-                string projectExcelPath = GetExcelFilePath("project.xlsx");
-                if (File.Exists(projectExcelPath))
-                {
-                    var projectAssets = ProjectSeeder.GetSeedData(projectExcelPath);
-                    allAssets.AddRange(projectAssets);
-                    Console.WriteLine($"Loaded {projectAssets.Count} project/construction assets");
-                }
-                else
-                {
-                    Console.WriteLine($"Project Excel file not found at: {projectExcelPath}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error seeding project data: {ex.Message}");
-            }
+            // Define all seeders with their file names
+            var seeders = new Dictionary<string, Func<string, List<Asset>>>
+    {
+        { "project.xlsx", ProjectSeeder.GetSeedData },
+        { "land.xlsx", LandSeeder.GetSeedData },
+        { "electrical.xlsx", ElectricalSeeder.GetSeedData }
+    };
 
-            // Seed Land/Building assets
-            try
+            foreach (var seeder in seeders)
             {
-                string landExcelPath = GetExcelFilePath("land.xlsx");
-                if (File.Exists(landExcelPath))
+                try
                 {
-                    var landAssets = LandSeeder.GetSeedData(landExcelPath);
-                    allAssets.AddRange(landAssets);
-                    Console.WriteLine($"Loaded {landAssets.Count} land/building assets");
-                }
-                else
-                {
-                    Console.WriteLine($"Land Excel file not found at: {landExcelPath}");
-                }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error seeding land data: {ex.Message}");
-            }
+                    string filePath = GetExcelFilePath(seeder.Key);
 
-            // Seed Electrical assets
-            try
-            {
-                string electricalExcelPath = GetExcelFilePath("electrical.xlsx");
-                if (File.Exists(electricalExcelPath))
-                {
-                    var electricalAssets = ElectricalSeeder.GetSeedData(electricalExcelPath);
-                    allAssets.AddRange(electricalAssets);
-                    Console.WriteLine($"Loaded {electricalAssets.Count} electrical assets");
+                    if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                    {
+                        var assets = seeder.Value(filePath);
+                        if (assets != null && assets.Any())
+                        {
+                            allAssets.AddRange(assets);
+                            Console.WriteLine($"Loaded {assets.Count} assets from {seeder.Key}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"No assets loaded from {seeder.Key}");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine($"File not found: {seeder.Key}");
+                        Console.WriteLine($"  Looked at: {filePath ?? "null"}");
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
-                    Console.WriteLine($"Electrical Excel file not found at: {electricalExcelPath}");
+                    Console.WriteLine($"Error seeding {seeder.Key}: {ex.Message}");
+                    Console.WriteLine($"  Stack trace: {ex.StackTrace}");
                 }
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"Error seeding electrical data: {ex.Message}");
             }
 
-            // Seed assets if any were loaded
             if (allAssets.Any())
             {
-                // Assign GUIDs to each asset
                 foreach (var asset in allAssets)
                 {
                     asset.Id = Guid.NewGuid();
                     asset.CreatedAt = DateTime.UtcNow;
-                    
                 }
 
                 modelBuilder.Entity<Asset>().HasData(allAssets);
-                Console.WriteLine($"Total assets seeded: {allAssets.Count}");
+                Console.WriteLine($"✓ Total assets seeded: {allAssets.Count}");
+            }
+            else
+            {
+                Console.WriteLine("⚠ No assets were loaded from any Excel files");
             }
         }
 
         private string GetExcelFilePath(string fileName)
         {
-            if (_environment != null)
-            {
-                // Check multiple possible locations
-                string wwwrootPath = Path.Combine(_environment.WebRootPath, "documents", fileName);
-                string contentRootPath = Path.Combine(_environment.ContentRootPath, "documents", fileName);
-                string dataPath = Path.Combine(_environment.ContentRootPath, "Data", fileName);
-                string seedDataPath = Path.Combine(_environment.ContentRootPath, "SeedData", fileName);
+            // Try to get the content root path from environment
+            string contentRootPath = null;
 
-                if (File.Exists(wwwrootPath)) return wwwrootPath;
-                if (File.Exists(contentRootPath)) return contentRootPath;
-                if (File.Exists(dataPath)) return dataPath;
-                if (File.Exists(seedDataPath)) return seedDataPath;
+            if (_environment != null && !string.IsNullOrEmpty(_environment.ContentRootPath))
+            {
+                contentRootPath = _environment.ContentRootPath;
             }
 
-            // Fallback paths for migration time
-            string[] fallbackPaths = {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "documents", fileName),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "Data", fileName),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "documents", fileName),
-                Path.Combine(Directory.GetCurrentDirectory(), "documents", fileName),
-                Path.Combine(Directory.GetCurrentDirectory(), "Data", fileName)
-            };
-
-            foreach (var path in fallbackPaths)
+            // If still null, try current directory
+            if (string.IsNullOrEmpty(contentRootPath))
             {
-                string fullPath = Path.GetFullPath(path);
-                if (File.Exists(fullPath))
-                    return fullPath;
+                contentRootPath = Directory.GetCurrentDirectory();
             }
 
-            return Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "documents", fileName);
+            // List of all possible paths to check
+            var possiblePaths = new List<string>();
+
+            // Primary location: documents folder in content root
+            possiblePaths.Add(Path.Combine(contentRootPath, "documents", fileName));
+
+            // Other common locations
+            possiblePaths.Add(Path.Combine(contentRootPath, "Data", fileName));
+            possiblePaths.Add(Path.Combine(contentRootPath, "SeedData", fileName));
+            possiblePaths.Add(Path.Combine(contentRootPath, "wwwroot", "documents", fileName));
+
+            // Also check from base directory (for when running from different locations)
+            possiblePaths.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "documents", fileName));
+            possiblePaths.Add(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "documents", fileName));
+
+            // Check all paths and return the first one that exists
+            foreach (var path in possiblePaths)
+            {
+                try
+                {
+                    var fullPath = Path.GetFullPath(path);
+                    if (File.Exists(fullPath))
+                    {
+                        Log.Debug("Found file at: {Path}", fullPath);
+                        return fullPath;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Log.Debug("Error checking path {Path}: {Error}", path, ex.Message);
+                    // Continue to next path
+                }
+            }
+
+            // If no file found, return the primary path (caller will handle)
+            var defaultPath = Path.Combine(contentRootPath, "documents", fileName);
+            Log.Warning("File not found in any location. Default path: {Path}", defaultPath);
+            return defaultPath;
         }
 
         // Helper method to reseed assets at runtime

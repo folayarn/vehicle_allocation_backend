@@ -42,7 +42,7 @@ Log.Logger = new LoggerConfiguration()
         path: "Logs/log-.txt",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 31,
-        fileSizeLimitBytes: 10485760, // 10MB
+        fileSizeLimitBytes: 10485760,
         rollOnFileSizeLimit: true,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}"
     )
@@ -106,7 +106,6 @@ try
             ClockSkew = TimeSpan.Zero
         };
 
-        // Add this to debug JWT issues
         options.Events = new JwtBearerEvents
         {
             OnAuthenticationFailed = context =>
@@ -141,34 +140,29 @@ try
         "Minimum Pool Size=2;" +
         "Connection Idle Lifetime=300;" +
         "Connection Lifetime=0;" +
-        "Timeout=30;" +           // Connection timeout (seconds)
-        "Command Timeout=60;" +    // Command timeout (seconds)
-        "Keepalive=300;" +         // Send keepalive every 5 minutes
-        "Include Error Detail=true;" + // Helpful for debugging
-        "Trust Server Certificate=true;"; // Add if using self-signed certs
+        "Timeout=30;" +
+        "Command Timeout=60;" +
+        "Keepalive=300;" +
+        "Include Error Detail=true;" +
+        "Trust Server Certificate=true;";
 
-    // Configure DbContext with retry logic and resilience
+    // **FIXED: Register DbContext with IWebHostEnvironment**
     builder.Services.AddDbContext<ApplicationDbContext>((serviceProvider, options) =>
     {
+        // Get the environment from the service provider
+        var environment = serviceProvider.GetRequiredService<IWebHostEnvironment>();
+
         options.UseNpgsql(connectionString, npgsqlOptions =>
         {
-            // Enable automatic retry on failure
             npgsqlOptions.EnableRetryOnFailure(
                 maxRetryCount: 5,
                 maxRetryDelay: TimeSpan.FromSeconds(10),
                 errorCodesToAdd: new[] { "57P01", "57P02", "57P03", "08000", "08003", "08006", "08007" });
-
-            // Set command timeout
             npgsqlOptions.CommandTimeout(60);
-
-            // Enable connection multiplexing (better performance)
         });
 
-        // Enable sensitive data logging only in development
         options.EnableSensitiveDataLogging(builder.Environment.IsDevelopment());
         options.EnableDetailedErrors(builder.Environment.IsDevelopment());
-
-        // Add connection interceptor for logging
         options.AddInterceptors(new NpgsqlConnectionInterceptor());
     });
 
@@ -176,7 +170,7 @@ try
     builder.Services.AddHostedService<MaintenanceBackgroundService>();
     builder.Services.AddScoped<TokenService>();
     builder.Services.AddScoped<UserService>();
-    builder.Services.AddScoped<LogService>(); // Add log service
+    builder.Services.AddScoped<LogService>();
 
     // Add controllers and Swagger
     builder.Services.AddControllers()
@@ -200,20 +194,18 @@ try
         app.UseSwaggerUI();
     }
 
-    // IMPORTANT: Configure static files to serve from Uploads folder
-    app.UseStaticFiles(); // For wwwroot folder
+    app.UseStaticFiles();
 
-    // Add this to serve files from Uploads folder
     app.UseStaticFiles(new StaticFileOptions
     {
         FileProvider = new PhysicalFileProvider(
             Path.Combine(builder.Environment.ContentRootPath, "Uploads")),
         RequestPath = "/Uploads",
-        ServeUnknownFileTypes = true, // Allow serving PDF files
-        DefaultContentType = "application/pdf" // Set default content type
+        ServeUnknownFileTypes = true,
+        DefaultContentType = "application/pdf"
     });
 
-    // Test database connection on startup
+    // **FIXED: Test database connection on startup (this is correct)**
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
@@ -224,6 +216,24 @@ try
             if (canConnect)
             {
                 Log.Information("✓ Database connection successful!");
+
+                // **OPTIONAL: Check if files exist in documents folder**
+                var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+                var documentsPath = Path.Combine(env.ContentRootPath, "documents");
+                Log.Information("Documents path: {Path}", documentsPath);
+                if (Directory.Exists(documentsPath))
+                {
+                    var files = Directory.GetFiles(documentsPath, "*.xlsx");
+                    Log.Information("Excel files found: {Count}", files.Length);
+                    foreach (var file in files)
+                    {
+                        Log.Information("  - {File}", Path.GetFileName(file));
+                    }
+                }
+                else
+                {
+                    Log.Warning("Documents folder not found at: {Path}", documentsPath);
+                }
             }
             else
             {
@@ -247,7 +257,6 @@ try
         var requestPath = context.Request.Path;
         var method = context.Request.Method;
 
-        // Log the request
         Log.Information("Request: {Method} {Path} started", method, requestPath);
 
         try
@@ -307,7 +316,7 @@ public class NpgsqlConnectionInterceptor : DbCommandInterceptor
     {
         if (command.CommandTimeout < 30)
         {
-            command.CommandTimeout = 60; // Ensure minimum timeout
+            command.CommandTimeout = 60;
         }
 
         Log.Debug("Executing SQL: {CommandText}", command.CommandText);
