@@ -15,7 +15,7 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Vehicle_Information_System.Services;
 
-// Load .env file
+
 Env.Load();
 Env.TraversePath().Load();
 
