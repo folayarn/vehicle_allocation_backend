@@ -15,11 +15,11 @@ using System.Text;
 using System.Text.Json.Serialization;
 using Vehicle_Information_System.Services;
 
-// Load .env file
+
 Env.Load();
 Env.TraversePath().Load();
 
-// Get values with null checks
+
 var localhost = Env.GetString("DATABASE_HOST");
 var database = Env.GetString("DATABASE");
 var password = Env.GetString("DATABASE_PASSWORD");
