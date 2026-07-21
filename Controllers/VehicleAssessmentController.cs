@@ -342,16 +342,22 @@ namespace Vehicle_Information_System.Controllers
                 var drivers = await _context.Drivers
                     .Where(d => d.SerNo == user.Svn)
                     .ToListAsync();
+
+                Console.WriteLine($"Found {drivers.Count} drivers for user with SerNo {user.Svn}.");
+                Console.WriteLine($"Driver VehicleIds: {string.Join(", ", drivers.Select(d => d.VehicleId))}");
                 // Step 2: Get the list of VehicleIds from those drivers
                 var vehicleIds = drivers
                     .Select(d => d.VehicleId)
                     .Distinct() // In case duplicate VehicleIds exist
                     .ToList();
+                Console.WriteLine($"Distinct VehicleIds count: {vehicleIds.Count}");
+
                 Console.WriteLine(vehicleIds.Count);
 
                 // Step 3: Get the VehicleAssessments by the VehicleIds
-                query = query.Where(v => vehicleIds.Contains(v.Id) && v.Command.Contains(user.Command));
-
+                query = query.Where(v => vehicleIds.Contains(v.Id));
+                 Console.WriteLine($"Query after filtering by VehicleIds and Command: {query.ToQueryString()}");
+                Console.WriteLine($"Final query count: {await query.CountAsync()}");    
                 // REMOVED: .ToList() and Console.WriteLine - these break the IQueryable
             }
             else if (user.AccessLevel == "chief_driver_com")
