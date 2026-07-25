@@ -73,6 +73,8 @@ namespace Vehicle_Information_System.Models
         public virtual ICollection<Allocation> Allocations { get; set; } = new List<Allocation>();
         public virtual ICollection<Driver> Drivers { get; set; } = null!;
         public virtual ICollection<Remark> Remarks { get; set; } = null!;
+        public virtual ICollection<MaintenanceRequest> MaintenanceRequests { get; set; } = null!;
+        public virtual ICollection<SparePartRequest> SparePartRequests { get; set; } = null!;
         public virtual ICollection<MaintenanceReport> MaintenanceReports { get; set; } = null!;
         public virtual ICollection<LogBook> LogBooks { get; set; } = null!;
         public virtual ICollection<IncidentReport> IncidentReports { get; set; } = null!;

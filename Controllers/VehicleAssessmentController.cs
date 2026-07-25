@@ -59,7 +59,7 @@ namespace Vehicle_Information_System.Controllers
                 // Step 1: Get the list of Drivers with the specified serNo
 
 
-                var officer = _context.Users.Where(r => r.Command.Contains(user.Command)).ToList();
+                var officer = _context.Users.Where(r => r.Command.Contains(user.Command) && r.AccessLevel == "driver").ToList();
 
                 var serNoList = officer.Select(d => d.Svn).ToList();
                 var drivers = await _context.Drivers
@@ -73,7 +73,7 @@ namespace Vehicle_Information_System.Controllers
 
 
                 // Step 3: Get the VehicleAssessments by the VehicleIds
-                query = query.Where(v => vehicleIds.Contains(v.Id) && v.Command.Contains(user.Command));
+                query = query.Where(v => vehicleIds.Contains(v.Id));
 
                 // REMOVED: .ToList() and Console.WriteLine - these break the IQueryable
             }
@@ -104,6 +104,8 @@ namespace Vehicle_Information_System.Controllers
                 .Include(r=>r.LogBooks)
                 .Include(r=>r.MaintenanceReports)
                 .Include(r=>r.IncidentReports)
+                .Include(r=>r.SparePartRequests)
+                .Include(r=>r.MaintenanceRequests)
                 .Include(r=>r.Remarks)
                 .Select(v => new 
                 {
@@ -365,22 +367,27 @@ namespace Vehicle_Information_System.Controllers
                 // Step 1: Get the list of Drivers with the specified serNo
 
 
-                var officer = _context.Users.Where(r => r.Command.Contains(user.Command)).ToList();
+                var officer = _context.Users.Where(r => r.Command.Contains(user.Command) && r.AccessLevel == "driver").ToList();
+
+                Console.WriteLine($"Found {officer.Count} officers for command {user.Command}.");
 
                 var serNoList = officer.Select(d => d.Svn).ToList();
+                Console.WriteLine($"SerNo list: {string.Join(", ", serNoList)}");
                 var drivers = await _context.Drivers
                     .Where(d => serNoList.Contains(d.SerNo))
                     .ToListAsync();
+                Console.WriteLine($"Found {drivers.Count} drivers for the given SerNo list.");
                 // Step 2: Get the list of VehicleIds from those drivers
                 var vehicleIds = drivers
                     .Select(d => d.VehicleId)
                     .Distinct() // In case duplicate VehicleIds exist
                     .ToList();
 
-
+                Console.WriteLine($"Distinct VehicleIds count: {vehicleIds.Count}");
                 // Step 3: Get the VehicleAssessments by the VehicleIds
-                query = query.Where(v => vehicleIds.Contains(v.Id) && v.Command.Contains(user.Command));
+                query = query.Where(v => vehicleIds.Contains(v.Id));
 
+                Console.WriteLine("Query after filtering by VehicleIds and Command: " + query.ToQueryString());
                 // REMOVED: .ToList() and Console.WriteLine - these break the IQueryable
             }
             else if (user.AccessLevel == "zone")
