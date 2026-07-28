@@ -171,6 +171,8 @@ try
     builder.Services.AddScoped<TokenService>();
     builder.Services.AddScoped<UserService>();
     builder.Services.AddScoped<LogService>();
+    builder.Services.AddScoped<DataSeeder>(); // ← ADD THIS
+
 
     // Add controllers and Swagger
     builder.Services.AddControllers()
@@ -205,8 +207,8 @@ try
         DefaultContentType = "application/pdf"
     });
 
-    // **FIXED: Test database connection on startup (this is correct)**
-    using (var scope = app.Services.CreateScope())
+    // Test database connection and seed data
+using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         try
@@ -217,10 +219,23 @@ try
             {
                 Log.Information("✓ Database connection successful!");
 
-                // **OPTIONAL: Check if files exist in documents folder**
+                // ✅ SEED DATA HERE (moved from OnModelCreating)
+                try
+                {
+                    var seeder = scope.ServiceProvider.GetRequiredService<DataSeeder>();
+                    await seeder.SeedAllDataAsync();
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "✗ Data seeding failed");
+                    // Don't throw - allow app to start even if seeding fails
+                }
+
+                // Check documents folder
                 var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
                 var documentsPath = Path.Combine(env.ContentRootPath, "documents");
                 Log.Information("Documents path: {Path}", documentsPath);
+
                 if (Directory.Exists(documentsPath))
                 {
                     var files = Directory.GetFiles(documentsPath, "*.xlsx");
