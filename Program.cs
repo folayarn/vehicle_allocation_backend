@@ -26,7 +26,6 @@ var password = Env.GetString("DATABASE_PASSWORD");
 var username = Env.GetString("DATABASE_USERNAME");
 var secret = Env.GetString("Secret");
 
-// Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
