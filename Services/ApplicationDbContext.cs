@@ -38,8 +38,7 @@ namespace Vehicle_Information_System.Services
         public DbSet<IncidentReport> IncidentReports { get; set; }
         public DbSet<MaintenanceReport> MaintenanceReports { get; set; }
         public DbSet<ActivityLog> ActivityLogs { get; set; }
-
-        // New DbSets for assets
+        public DbSet<FuelRequest> FuelRequests { get; set; }
         public DbSet<Asset> Assets { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -112,16 +111,23 @@ namespace Vehicle_Information_System.Services
                 entity.HasIndex(e => e.AssetStatus);
             });
 
-            // Seed all asset data
-            SeedVehicleData(modelBuilder);
-            SeedAllAssets(modelBuilder);
+            // Seed data with duplicate checking
+            SeedVehicleDataOnce(modelBuilder);
+            SeedAllAssetsOnce(modelBuilder);
         }
 
-        private void SeedVehicleData(ModelBuilder modelBuilder)
+        private void SeedVehicleDataOnce(ModelBuilder modelBuilder)
         {
             try
             {
-                // Get the Excel file path (adjust as needed)
+                // Check if vehicle data already exists
+                var existingVehicles = VehicleAssessments.Any();
+                if (existingVehicles)
+                {
+                    Console.WriteLine("Vehicle data already exists. Skipping vehicle seeding.");
+                    return;
+                }
+
                 string excelPath;
 
                 if (_environment != null)
@@ -138,10 +144,12 @@ namespace Vehicle_Information_System.Services
                 {
                     var vehicles = VehicleAssessmentSeedData.GetSeedData(excelPath);
 
-                    // Use HasData to seed during migration
-                    modelBuilder.Entity<VehicleAssessment>().HasData(vehicles);
-
-                    Console.WriteLine($"Prepared {vehicles.Count} vehicles for seeding");
+                    if (vehicles != null && vehicles.Any())
+                    {
+                        // Use HasData to seed during migration
+                        modelBuilder.Entity<VehicleAssessment>().HasData(vehicles);
+                        Console.WriteLine($"Prepared {vehicles.Count} vehicles for seeding");
+                    }
                 }
                 else
                 {
@@ -150,67 +158,83 @@ namespace Vehicle_Information_System.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error seeding vehicle data");
+                Console.WriteLine($"Error seeding vehicle data: {ex.Message}");
             }
         }
-        private void SeedAllAssets(ModelBuilder modelBuilder)
+
+        private void SeedAllAssetsOnce(ModelBuilder modelBuilder)
         {
-            var allAssets = new List<Asset>();
-
-            // Define all seeders with their file names
-            var seeders = new Dictionary<string, Func<string, List<Asset>>>
-    {
-        { "project.xlsx", ProjectSeeder.GetSeedData },
-        { "land.xlsx", LandSeeder.GetSeedData },
-        { "electrical.xlsx", ElectricalSeeder.GetSeedData }
-    };
-
-            foreach (var seeder in seeders)
+            try
             {
-                try
+                // Check if assets already exist
+                var existingAssets = Assets.Any();
+                if (existingAssets)
                 {
-                    string filePath = GetExcelFilePath(seeder.Key);
+                    Console.WriteLine("Assets already exist. Skipping asset seeding.");
+                    return;
+                }
 
-                    if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
+                var allAssets = new List<Asset>();
+
+                // Define all seeders with their file names
+                var seeders = new Dictionary<string, Func<string, List<Asset>>>
+                {
+                    { "project.xlsx", ProjectSeeder.GetSeedData },
+                    { "land.xlsx", LandSeeder.GetSeedData },
+                    { "electrical.xlsx", ElectricalSeeder.GetSeedData }
+                };
+
+                foreach (var seeder in seeders)
+                {
+                    try
                     {
-                        var assets = seeder.Value(filePath);
-                        if (assets != null && assets.Any())
+                        string filePath = GetExcelFilePath(seeder.Key);
+
+                        if (!string.IsNullOrEmpty(filePath) && File.Exists(filePath))
                         {
-                            allAssets.AddRange(assets);
-                            Console.WriteLine($"Loaded {assets.Count} assets from {seeder.Key}");
+                            var assets = seeder.Value(filePath);
+                            if (assets != null && assets.Any())
+                            {
+                                allAssets.AddRange(assets);
+                                Console.WriteLine($"Loaded {assets.Count} assets from {seeder.Key}");
+                            }
+                            else
+                            {
+                                Console.WriteLine($"No assets loaded from {seeder.Key}");
+                            }
                         }
                         else
                         {
-                            Console.WriteLine($"No assets loaded from {seeder.Key}");
+                            Console.WriteLine($"File not found: {seeder.Key}");
+                            Console.WriteLine($"  Looked at: {filePath ?? "null"}");
                         }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        Console.WriteLine($"File not found: {seeder.Key}");
-                        Console.WriteLine($"  Looked at: {filePath ?? "null"}");
+                        Console.WriteLine($"Error seeding {seeder.Key}: {ex.Message}");
+                        Console.WriteLine($"  Stack trace: {ex.StackTrace}");
                     }
                 }
-                catch (Exception ex)
+
+                if (allAssets.Any())
                 {
-                    Console.WriteLine($"Error seeding {seeder.Key}: {ex.Message}");
-                    Console.WriteLine($"  Stack trace: {ex.StackTrace}");
+                    foreach (var asset in allAssets)
+                    {
+                        asset.Id = Guid.NewGuid();
+                        asset.CreatedAt = DateTime.UtcNow;
+                    }
+
+                    modelBuilder.Entity<Asset>().HasData(allAssets);
+                    Console.WriteLine($"✓ Total assets seeded: {allAssets.Count}");
+                }
+                else
+                {
+                    Console.WriteLine("⚠ No assets were loaded from any Excel files");
                 }
             }
-
-            if (allAssets.Any())
+            catch (Exception ex)
             {
-                foreach (var asset in allAssets)
-                {
-                    asset.Id = Guid.NewGuid();
-                    asset.CreatedAt = DateTime.UtcNow;
-                }
-
-                modelBuilder.Entity<Asset>().HasData(allAssets);
-                Console.WriteLine($"✓ Total assets seeded: {allAssets.Count}");
-            }
-            else
-            {
-                Console.WriteLine("⚠ No assets were loaded from any Excel files");
+                Console.WriteLine($"Error in SeedAllAssetsOnce: {ex.Message}");
             }
         }
 
@@ -270,47 +294,87 @@ namespace Vehicle_Information_System.Services
             return defaultPath;
         }
 
-        // Helper method to reseed assets at runtime
+        // Helper method to reseed assets at runtime (with duplicate checking)
         public async Task ReseedAssetsAsync()
         {
-            // Remove existing assets
-            Assets.RemoveRange(Assets);
-            await SaveChangesAsync();
-
-            // Reload assets
-            var allAssets = new List<Asset>();
-
-            string projectExcelPath = GetExcelFilePath("project.xlsx");
-            if (File.Exists(projectExcelPath))
+            try
             {
-                allAssets.AddRange(ProjectSeeder.GetSeedData(projectExcelPath));
-            }
-
-            string landExcelPath = GetExcelFilePath("land.xlsx");
-            if (File.Exists(landExcelPath))
-            {
-                allAssets.AddRange(LandSeeder.GetSeedData(landExcelPath));
-            }
-
-            string electricalExcelPath = GetExcelFilePath("electrical.xlsx");
-            if (File.Exists(electricalExcelPath))
-            {
-                allAssets.AddRange(ElectricalSeeder.GetSeedData(electricalExcelPath));
-            }
-
-            if (allAssets.Any())
-            {
-                foreach (var asset in allAssets)
+                // Check if assets already exist
+                if (await Assets.AnyAsync())
                 {
-                    asset.Id = Guid.NewGuid();
-                    asset.CreatedAt = DateTime.UtcNow;
-                    
+                    Console.WriteLine("Assets already exist. Use forceReseed parameter to override.");
+                    return;
                 }
 
-                await Assets.AddRangeAsync(allAssets);
-                await SaveChangesAsync();
-                Console.WriteLine($"Reseeded {allAssets.Count} assets");
+                // Reload assets
+                var allAssets = new List<Asset>();
+
+                string projectExcelPath = GetExcelFilePath("project.xlsx");
+                if (File.Exists(projectExcelPath))
+                {
+                    allAssets.AddRange(ProjectSeeder.GetSeedData(projectExcelPath));
+                }
+
+                string landExcelPath = GetExcelFilePath("land.xlsx");
+                if (File.Exists(landExcelPath))
+                {
+                    allAssets.AddRange(LandSeeder.GetSeedData(landExcelPath));
+                }
+
+                string electricalExcelPath = GetExcelFilePath("electrical.xlsx");
+                if (File.Exists(electricalExcelPath))
+                {
+                    allAssets.AddRange(ElectricalSeeder.GetSeedData(electricalExcelPath));
+                }
+
+                if (allAssets.Any())
+                {
+                    foreach (var asset in allAssets)
+                    {
+                        asset.Id = Guid.NewGuid();
+                        asset.CreatedAt = DateTime.UtcNow;
+                    }
+
+                    await Assets.AddRangeAsync(allAssets);
+                    await SaveChangesAsync();
+                    Console.WriteLine($"Reseeded {allAssets.Count} assets");
+                }
+                else
+                {
+                    Console.WriteLine("No assets found to reseed");
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error reseeding assets: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Force reseed method (clears existing data first)
+        public async Task ForceReseedAssetsAsync()
+        {
+            try
+            {
+                // Remove existing assets
+                Assets.RemoveRange(Assets);
+                await SaveChangesAsync();
+                Console.WriteLine("Cleared existing assets");
+
+                // Reseed
+                await ReseedAssetsAsync();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error force reseeding assets: {ex.Message}");
+                throw;
+            }
+        }
+
+        // Helper method to check if seeding is needed
+        public bool IsSeedingNeeded()
+        {
+            return !Assets.Any() || !VehicleAssessments.Any();
         }
     }
 }

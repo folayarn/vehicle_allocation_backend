@@ -1,0 +1,30 @@
+2026-07-26 21:28:46.364 +01:00 [INF] Starting Vehicle Information System API {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:28:46.439 +01:00 [INF] Environment: Development {"Application":"VehicleInformationSystem"}
+2026-07-26 21:28:46.536 +01:00 [DBG] Secret loaded: YES {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:28:46.538 +01:00 [DBG] Secret length: 47 {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:28:46.541 +01:00 [DBG] Secret first 10 chars: YourSuperS {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:28:46.650 +01:00 [FTL] Application terminated unexpectedly {"Application":"VehicleInformationSystem","Environment":"Development"}
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at System.Diagnostics.DiagnosticSource.Write[T](String name, T value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in C:\Users\USER\source\repos\Vehicle Information System\Vehicle Information System\Program.cs:line 188
+2026-07-26 21:29:21.987 +01:00 [INF] Starting Vehicle Information System API {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:29:22.148 +01:00 [INF] Environment: Development {"Application":"VehicleInformationSystem"}
+2026-07-26 21:29:22.377 +01:00 [DBG] Secret loaded: YES {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:29:22.381 +01:00 [DBG] Secret length: 47 {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:29:22.384 +01:00 [DBG] Secret first 10 chars: YourSuperS {"Application":"VehicleInformationSystem","Environment":"Development"}
+2026-07-26 21:29:22.609 +01:00 [FTL] Application terminated unexpectedly {"Application":"VehicleInformationSystem","Environment":"Development"}
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at System.Diagnostics.DiagnosticSource.Write[T](String name, T value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in C:\Users\USER\source\repos\Vehicle Information System\Vehicle Information System\Program.cs:line 188

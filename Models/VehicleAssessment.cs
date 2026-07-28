@@ -79,6 +79,8 @@ namespace Vehicle_Information_System.Models
         public virtual ICollection<LogBook> LogBooks { get; set; } = null!;
         public virtual ICollection<IncidentReport> IncidentReports { get; set; } = null!;
         public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = null!;
+        public virtual ICollection<FuelRequest> FuelRequests { get; set; } = null!;
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }
 }
