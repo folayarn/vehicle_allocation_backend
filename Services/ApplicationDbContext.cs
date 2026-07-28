@@ -46,7 +46,7 @@ namespace Vehicle_Information_System.Services
             base.OnModelCreating(modelBuilder);
 
             // Seed users
-            UserSeeder.SeedUsers(modelBuilder);
+          //  UserSeeder.SeedUsers(modelBuilder);
 
             // Configure Email as unique in User table
             modelBuilder.Entity<User>(entity =>
@@ -112,8 +112,8 @@ namespace Vehicle_Information_System.Services
             });
 
             // Seed data with duplicate checking
-            SeedVehicleDataOnce(modelBuilder);
-            SeedAllAssetsOnce(modelBuilder);
+           // SeedVehicleDataOnce(modelBuilder);
+          //  SeedAllAssetsOnce(modelBuilder);
         }
 
         private void SeedVehicleDataOnce(ModelBuilder modelBuilder)
