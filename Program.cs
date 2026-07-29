@@ -19,7 +19,7 @@ using Vehicle_Information_System.Services;
 Env.Load();
 Env.TraversePath().Load();
 
-//eeere
+
 var localhost = Env.GetString("DATABASE_HOST");
 var database = Env.GetString("DATABASE");
 var password = Env.GetString("DATABASE_PASSWORD");
