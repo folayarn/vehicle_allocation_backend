@@ -315,7 +315,6 @@ finally
 
 return 0;
 
-// Custom interceptor for logging database connections
 public class NpgsqlConnectionInterceptor : DbCommandInterceptor
 {
     private readonly ILogger<NpgsqlConnectionInterceptor>? _logger;
