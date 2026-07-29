@@ -26,7 +26,6 @@ var password = Env.GetString("DATABASE_PASSWORD");
 var username = Env.GetString("DATABASE_USERNAME");
 var secret = Env.GetString("Secret");
 
-// Configure 
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Debug()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -64,7 +63,6 @@ try
     // Add Serilog to the builder
     builder.Host.UseSerilog();
 
-    // DEBUG: Check if secret is loaded
     Log.Debug("Secret loaded: {SecretLoaded}", string.IsNullOrEmpty(secret) ? "NO - SECRET IS NULL!" : "YES");
     if (!string.IsNullOrEmpty(secret))
     {
@@ -317,7 +315,6 @@ finally
 
 return 0;
 
-// Custom interceptor for logging database connections
 public class NpgsqlConnectionInterceptor : DbCommandInterceptor
 {
     private readonly ILogger<NpgsqlConnectionInterceptor>? _logger;
