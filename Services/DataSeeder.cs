@@ -189,14 +189,14 @@ namespace Vehicle_Information_System.Services
                     if (allAssets.Any())
                     {
                         // Remove duplicates by AssetName (keep first occurrence)
-                        var uniqueAssets = allAssets
-                            .GroupBy(a => a.AssetName)
-                            .Select(g => g.First())
-                            .ToList();
+                        //var uniqueAssets = allAssets
+                        //    .GroupBy(a => a.AssetName)
+                        //    .Select(g => g.First())
+                        //    .ToList();
 
-                        await _context.Assets.AddRangeAsync(uniqueAssets);
+                        await _context.Assets.AddRangeAsync(allAssets);
                         await _context.SaveChangesAsync();
-                        _logger.LogInformation("✓ Total assets seeded: {Count}", uniqueAssets.Count);
+                        _logger.LogInformation("✓ Total assets seeded: {Count}", allAssets.Count);
                     }
                     else
                     {
