@@ -63,7 +63,6 @@ try
     // Add Serilog to the builder
     builder.Host.UseSerilog();
 
-    // DEBUG: Check if secret is loaded
     Log.Debug("Secret loaded: {SecretLoaded}", string.IsNullOrEmpty(secret) ? "NO - SECRET IS NULL!" : "YES");
     if (!string.IsNullOrEmpty(secret))
     {
