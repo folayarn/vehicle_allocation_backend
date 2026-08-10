@@ -238,13 +238,13 @@ namespace Vehicle_Information_System.Controllers
         [HttpPut("edit-user")]
         public async Task<IActionResult> EditUser([FromBody] EditUserDto userDto)
         {
-            if (userDto == null || userDto.UserId == Guid.Empty)
-                return BadRequest(new { message = "Invalid user data. UserId is required." });
+            if (userDto == null || userDto.OfficerId == Guid.Empty)
+                return BadRequest(new { message = "Invalid user data. OfficerId is required." });
 
             try
             {
                 // Search across all user types
-                var user = await FindUserById(userDto.UserId);
+                var user = await FindUserById(userDto.OfficerId);
                 if (user == null)
                     return NotFound(new { message = "User not found" });
 
@@ -269,9 +269,13 @@ namespace Vehicle_Information_System.Controllers
 
                 if (!string.IsNullOrEmpty(userDto.Email))
                     user.Email = userDto.Email;
+                if (!string.IsNullOrEmpty(userDto.Password))
+                    user.Password = _generateToken.HashPassword(userDto.Password);
+
+
 
                 // Update based on type
-                switch (user.UserType)
+                switch (userDto.UserType)
                 {
                     case "Fleet":
                         _context.Users.Update((User)user);
@@ -293,7 +297,7 @@ namespace Vehicle_Information_System.Controllers
             }
             catch (DbUpdateConcurrencyException ex)
             {
-                _logger.LogError(ex, "Concurrency conflict updating user {UserId}", userDto.UserId);
+                _logger.LogError(ex, "Concurrency conflict updating user {OfficerId}", userDto.OfficerId);
                 return Conflict(new { message = "The record was modified by another user. Please refresh and try again." });
             }
             catch (Exception ex)
@@ -304,7 +308,7 @@ namespace Vehicle_Information_System.Controllers
         }
 
         [HttpPut("suspend-user/{userId}")]
-        public async Task<IActionResult> SuspendUser(Guid userId)
+        public async Task<IActionResult> SuspendUser(Guid userId, [FromBody] Type type)
         {
             try
             {
@@ -314,7 +318,7 @@ namespace Vehicle_Information_System.Controllers
 
                 user.Status = "Suspended";
 
-                await UpdateUserInContext(user);
+                await UpdateUserInContext(user,type);
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "User successfully suspended." });
@@ -327,7 +331,7 @@ namespace Vehicle_Information_System.Controllers
         }
 
         [HttpPut("unsuspend-user/{userId}")]
-        public async Task<IActionResult> UnSuspendUser(Guid userId)
+        public async Task<IActionResult> UnSuspendUser(Guid userId, [FromBody] Type type)
         {
             try
             {
@@ -337,7 +341,7 @@ namespace Vehicle_Information_System.Controllers
 
                 user.Status = "Active";
 
-                await UpdateUserInContext(user);
+                await UpdateUserInContext(user,type);
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "User successfully activated." });
@@ -349,8 +353,8 @@ namespace Vehicle_Information_System.Controllers
             }
         }
 
-        [HttpDelete("delete-user/{userId}")]
-        public async Task<IActionResult> DeleteUser(Guid userId)
+        [HttpPost("delete-user/{userId}")]
+        public async Task<IActionResult> DeleteUser(Guid userId, [FromBody] Type type)
         {
             try
             {
@@ -358,7 +362,7 @@ namespace Vehicle_Information_System.Controllers
                 if (user == null)
                     return NotFound(new { message = "User not found." });
 
-                await RemoveUserFromContext(user);
+                await RemoveUserFromContext(user, type);
                 await _context.SaveChangesAsync();
 
                 return Ok(new { message = "User successfully deleted." });
@@ -370,74 +374,74 @@ namespace Vehicle_Information_System.Controllers
             }
         }
 
-        [HttpPut("update-password")]
-        public async Task<IActionResult> UpdatePassword([FromBody] PasswordRequestDto request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(new { message = "Invalid data." });
+        //[HttpPut("update-password")]
+        //public async Task<IActionResult> UpdatePassword([FromBody] PasswordRequestDto request, [FromBody])
+        //{
+        //    if (!ModelState.IsValid)
+        //        return BadRequest(new { message = "Invalid data." });
 
-            try
-            {
-                var user = await FindUserById(request.OfficerId);
-                if (user == null)
-                    return Unauthorized(new { message = "User not found." });
+        //    try
+        //    {
+        //        var user = await FindUserById(request.OfficerId);
+        //        if (user == null)
+        //            return Unauthorized(new { message = "User not found." });
 
-                // Check if the old password matches
-                if (user.Password != _generateToken.HashPassword(request.OldPassword))
-                    return BadRequest(new { message = "Incorrect old password." });
+        //        // Check if the old password matches
+        //        if (user.Password != _generateToken.HashPassword(request.OldPassword))
+        //            return BadRequest(new { message = "Incorrect old password." });
 
-                // Validate new password strength
-                if (!ValidatePassword(request.NewPassword))
-                    return BadRequest(new
-                    {
-                        message = "Password should be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character."
-                    });
+        //        // Validate new password strength
+        //        if (!ValidatePassword(request.NewPassword))
+        //            return BadRequest(new
+        //            {
+        //                message = "Password should be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+        //            });
 
-                user.Password = _generateToken.HashPassword(request.NewPassword);
+        //        user.Password = _generateToken.HashPassword(request.NewPassword);
 
-                await UpdateUserInContext(user);
-                await _context.SaveChangesAsync();
+        //        await UpdateUserInContext(user);
+        //        await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Password updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error updating password for user {UserId}", request.OfficerId);
-                return StatusCode(500, new { message = $"Error: {ex.Message}" });
-            }
-        }
+        //        return Ok(new { message = "Password updated successfully." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error updating password for user {UserId}", request.OfficerId);
+        //        return StatusCode(500, new { message = $"Error: {ex.Message}" });
+        //    }
+        //}
 
-        [HttpPut("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] PasswordRequestDto request)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(new { message = "Invalid data." });
+        //[HttpPut("reset-password")]
+        //public async Task<IActionResult> ResetPassword([FromBody] PasswordRequestDto request)
+        //{
+        //    if (!ModelState.IsValid)
+        //        return BadRequest(new { message = "Invalid data." });
 
-            try
-            {
-                var user = await FindUserById(request.OfficerId);
-                if (user == null)
-                    return NotFound(new { message = "User not found." });
+        //    try
+        //    {
+        //        var user = await FindUserById(request.OfficerId);
+        //        if (user == null)
+        //            return NotFound(new { message = "User not found." });
 
-                if (!ValidatePassword(request.NewPassword))
-                    return BadRequest(new
-                    {
-                        message = "Password should be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character."
-                    });
+        //        if (!ValidatePassword(request.NewPassword))
+        //            return BadRequest(new
+        //            {
+        //                message = "Password should be at least 8 characters long, contain at least one uppercase letter, one lowercase letter, one number, and one special character."
+        //            });
 
-                user.Password = _generateToken.HashPassword(request.NewPassword);
+        //        user.Password = _generateToken.HashPassword(request.NewPassword);
 
-                await UpdateUserInContext(user);
-                await _context.SaveChangesAsync();
+        //        await UpdateUserInContext(user);
+        //        await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Password updated successfully." });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error resetting password for user {UserId}", request.OfficerId);
-                return StatusCode(500, new { message = $"Error: {ex.Message}" });
-            }
-        }
+        //        return Ok(new { message = "Password updated successfully." });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Error resetting password for user {UserId}", request.OfficerId);
+        //        return StatusCode(500, new { message = $"Error: {ex.Message}" });
+        //    }
+        //}
 
         [HttpGet("user")]
         public async Task<IActionResult> GetUsers()
@@ -571,9 +575,9 @@ namespace Vehicle_Information_System.Controllers
                    await _context.StoreUsers.AnyAsync(u => u.Email == email);
         }
 
-        private async Task UpdateUserInContext(dynamic user)
+        private async Task UpdateUserInContext(dynamic user,Type type)
         {
-            switch (user.UserType)
+            switch (type.UserType)
             {
                 case "Fleet":
                     _context.Users.Update(user);
@@ -591,9 +595,9 @@ namespace Vehicle_Information_System.Controllers
             await Task.CompletedTask;
         }
 
-        private async Task RemoveUserFromContext(dynamic user)
+        private async Task RemoveUserFromContext(dynamic user,Type type)
         {
-            switch (user.UserType)
+            switch (type.UserType)
             {
                 case "Fleet":
                     _context.Users.Remove(user);
@@ -625,12 +629,19 @@ namespace Vehicle_Information_System.Controllers
 // Add this DTO
 public class EditUserDto
 {
-    public Guid UserId { get; set; }
+    public Guid OfficerId { get; set; }
     public string? Command { get; set; }
     public string? Fullname { get; set; }
+    public string? Password { get; set; }
     public string? Rank { get; set; }
     public string? Svn { get; set; }
+    public string? UserType { get; set; }
     public string? Phone { get; set; }
     public string? AccessLevel { get; set; }
     public string? Email { get; set; }
+}
+
+public class Type
+{
+    public string UserType { get; set; }
 }
