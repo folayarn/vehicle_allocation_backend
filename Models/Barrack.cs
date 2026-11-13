@@ -17,5 +17,7 @@ namespace Vehicle_Information_System.Models
       public long TotalUnits { get; set; }
 
         public virtual ICollection<AccommodationUnit> AccommodationUnits { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

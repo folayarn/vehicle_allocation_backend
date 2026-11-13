@@ -25,7 +25,7 @@ namespace Vehicle_Information_System.Services
             return await _context.Users.FirstOrDefaultAsync(u => u.RefreshToken == refreshToken);
         }
 
-        public async Task ActivityLog(string action, Guid vehicleId, Guid? UserId = null)
+        public async Task ActivityLog(string action,  Guid UserId, Guid? TargetId, string TargetType  )
         {
 
             var user = _context.Users.Find(UserId);
@@ -33,8 +33,10 @@ namespace Vehicle_Information_System.Services
             var activity = new ActivityLog
             {
                 Action = action,
-                VehicleId = vehicleId,
+                UserId = UserId,
                 FullName = $"{user.Rank } {user.Svn} {user.Fullname}".ToUpper(),
+                TargetId = TargetId,
+                TargetType = TargetType
             };
 
             _context.ActivityLogs.Add(activity);

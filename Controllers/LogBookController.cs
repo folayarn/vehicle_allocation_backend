@@ -216,7 +216,7 @@ namespace Vehicle_Information_System.Controllers
                 _context.LogBooks.Add(logBook);
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Created Log Book Report {createDto.Remarks}", createDto.VehicleId, createDto.UserId);
+                _userService.ActivityLog($"Created Log Book Report {createDto.Remarks}", createDto.VehicleId, createDto.UserId,"LogBook");
 
 
                 return Ok(new
@@ -258,7 +258,7 @@ namespace Vehicle_Information_System.Controllers
             _context.LogBooks.Update(logBook);
             await _context.SaveChangesAsync();
 
-            _userService.ActivityLog($"Approve Log Book Report {logBook.Remarks}", logBook.VehicleId, logBook.UserId);
+            _userService.ActivityLog($"Approved Log Book Report {logBook.Remarks}", logBook.VehicleId, logBook.UserId,"LogBook");
 
             return Ok(new {message="Approve Successfully"});
         }
@@ -282,7 +282,7 @@ namespace Vehicle_Information_System.Controllers
             _context.LogBooks.Update(logBook);
             await _context.SaveChangesAsync();
 
-            _userService.ActivityLog($"Rejected Log Book Report {logBook.Remarks}", logBook.VehicleId, logBook.UserId);
+            _userService.ActivityLog($"Rejected Log Book Report {logBook.Remarks}", logBook.VehicleId, logBook.UserId,"LogBook");
 
             return Ok(new { message = "Rejected Successfully" });
         }
@@ -367,6 +367,8 @@ namespace Vehicle_Information_System.Controllers
 
                 await _context.SaveChangesAsync();
 
+                _userService.ActivityLog($"Updated Log Book Report {logBook.Remarks}", logBook.VehicleId, logBook.UserId,"LogBook");
+
                 return Ok(new { message = "LogBook entry updated successfully", logBook });
             }
             catch (Exception ex)
@@ -397,6 +399,7 @@ namespace Vehicle_Information_System.Controllers
 
                 _context.LogBooks.Remove(logBook);
                 await _context.SaveChangesAsync();
+                _userService.ActivityLog($"Deleted Log Book Report {logBook.Remarks}", logBook.VehicleId, logBook.UserId,"LogBook");
 
                 return Ok(new { message = "LogBook entry deleted successfully" });
             }

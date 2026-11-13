@@ -12,6 +12,8 @@ namespace Vehicle_Information_System.Dtos
 
         public string? ChassisNumber { get; set; }
 
+
+
         
         [MaxLength(100)]
         public string? OfficerName { get; set; }

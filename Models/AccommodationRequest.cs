@@ -45,6 +45,8 @@ namespace Vehicle_Information_System.Models
         public DateTime? AcsApprovalDate { get; set; }
         public DateTime? CompApprovalDate { get; set; }
 
+        public Guid  ActivityLogId { get; set; }
+
         [StringLength(30)]
         public string OverallStatus { get; set; } = "pending";
 
@@ -55,5 +57,8 @@ namespace Vehicle_Information_System.Models
         public virtual Barrack PreferredBarracks { get; set; }
 
         public virtual Allocation Allocation { get; set; }
+
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

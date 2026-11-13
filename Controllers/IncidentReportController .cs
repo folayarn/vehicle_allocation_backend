@@ -248,7 +248,7 @@ namespace Vehicle_Information_System.Controllers
                 _context.IncidentReports.Add(incidentReport);
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Created Incident Report {createDto.Title}",createDto.VehicleId, createDto.UserId);
+                _userService.ActivityLog($"Created Incident Report {createDto.Title}",createDto.VehicleId, createDto.UserId,"IncidentReport");
 
 
                 return Ok(new
@@ -361,7 +361,7 @@ namespace Vehicle_Information_System.Controllers
 
                 _context.Update(incidentReport);
                 await _context.SaveChangesAsync();
-                _userService.ActivityLog($"Updated Incident Report {updateDto.Title}", updateDto.VehicleId, updateDto.UserId);
+                _userService.ActivityLog($"Updated Incident Report {updateDto.Title}", updateDto.VehicleId, updateDto.UserId,"IncidentReport");
 
                 return Ok(new { message = "Incident report updated successfully", incidentReport });
             }
@@ -405,7 +405,7 @@ namespace Vehicle_Information_System.Controllers
                     }
                 }
 
-                _userService.ActivityLog($"Delete Incident Report {incidentReport.Title}", incidentReport.VehicleId, incidentReport.UserId);
+                _userService.ActivityLog($"Deleted Incident Report {incidentReport.Title}", incidentReport.VehicleId, incidentReport.UserId,"IncidentReport");
 
                 _context.IncidentReports.Remove(incidentReport);
                 await _context.SaveChangesAsync();

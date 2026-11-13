@@ -182,7 +182,7 @@ namespace Vehicle_Information_System.Controllers
                 _context.MaintenanceRequests.Add(maintenanceRequest);
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Created Maintenance Request {createDto.Title}", createDto.VehicleId, createDto.UserId);
+                _userService.ActivityLog($"Created Maintenance Request {createDto.Title}", createDto.VehicleId, createDto.UserId,"MaintenanceRequest");
 
                 return Ok(new
                 {
@@ -231,7 +231,7 @@ namespace Vehicle_Information_System.Controllers
 
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Updated Maintenance Request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId);
+                _userService.ActivityLog($"Updated Maintenance Request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId,"MaintenanceRequest");
 
                 return Ok(new { message = "Maintenance request updated successfully", maintenanceRequest });
             }
@@ -271,7 +271,7 @@ namespace Vehicle_Information_System.Controllers
 
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Acknowledged Maintenance Request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId);
+                _userService.ActivityLog($"Acknowledged Maintenance Request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId,"MaintenanceRequest");
 
                 return Ok(new { message = "Maintenance request acknowledged successfully", status = maintenanceRequest.status });
             }
@@ -300,7 +300,7 @@ namespace Vehicle_Information_System.Controllers
                     maintenanceRequest.status = updateStatusDto.Status;
                     await _context.SaveChangesAsync();
 
-                    _userService.ActivityLog($"Updated Maintenance Request status to {updateStatusDto.Status} for request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId);
+                    _userService.ActivityLog($"Updated Maintenance Request status to {updateStatusDto.Status} for request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId,"MaintenanceRequest");
 
                     return Ok(new { message = "Maintenance request status updated successfully", status = maintenanceRequest.status });
                 }
@@ -326,7 +326,7 @@ namespace Vehicle_Information_System.Controllers
                     return NotFound(new { message = $"Maintenance request with ID {id} not found" });
                 }
 
-                _userService.ActivityLog($"Deleted Maintenance Request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId);
+                _userService.ActivityLog($"Deleted Maintenance Request {maintenanceRequest.Title}", maintenanceRequest.VehicleId, maintenanceRequest.UserId, "MaintenanceRequest");
 
                 _context.MaintenanceRequests.Remove(maintenanceRequest);
                 await _context.SaveChangesAsync();

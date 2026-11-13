@@ -26,6 +26,9 @@ namespace Vehicle_Information_System.Models
         // Navigation property
         [ForeignKey("VehicleId")]
         public virtual VehicleAssessment VehicleAssessment { get; set; } = null!;
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
+
 
 
 

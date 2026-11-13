@@ -40,5 +40,7 @@ namespace Vehicle_Information_System.Models
         public virtual StoreUser Issuer { get; set; }
 
         public virtual ICollection<StockIssue> IssueItems { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

@@ -176,7 +176,7 @@ namespace Vehicle_Information_System.Controllers
                 _context.VehicleAssessments.Update(vehicle);
 
                 await _context.SaveChangesAsync();
-                _userService.ActivityLog($"Created Maintenance Report {createDto.Title}", createDto.VehicleId, createDto.UserId);
+                _userService.ActivityLog($"Created Maintenance Report {createDto.Title}", createDto.VehicleId, createDto.UserId,"MaintenanceReport");
 
 
                 return Ok(new
@@ -223,7 +223,7 @@ namespace Vehicle_Information_System.Controllers
                 maintenanceReport.LastMaintenanceMileage = updateDto.LastMaintenanceMileage;
 
                 await _context.SaveChangesAsync();
-                _userService.ActivityLog($"Updated Maintenance Report {updateDto.Title}", updateDto.VehicleId, updateDto.UserId);
+                _userService.ActivityLog($"Updated Maintenance Report {updateDto.Title}", updateDto.VehicleId, updateDto.UserId,"MaintenanceReport");
 
 
                 return Ok(new { message = "Maintenance report updated successfully", maintenanceReport });
@@ -247,7 +247,7 @@ namespace Vehicle_Information_System.Controllers
                     return NotFound(new { message = $"Maintenance report with ID {id} not found" });
                 }
 
-                _userService.ActivityLog($"deleted Maintenance Report {maintenanceReport.Title}", maintenanceReport.VehicleId, maintenanceReport.UserId);
+                _userService.ActivityLog($"Deleted Maintenance Report {maintenanceReport.Title}", maintenanceReport.VehicleId, maintenanceReport.UserId,"MaintenanceReport");
 
 
                 _context.MaintenanceReports.Remove(maintenanceReport);

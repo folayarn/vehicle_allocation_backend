@@ -240,7 +240,7 @@ namespace Vehicle_Information_System.Controllers
                 _context.Allocations.Add(allocation);
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Created Allocation for {createDto.Department} {createDto.Unit} {createDto.Office} {createDto.OfficerSerNo}{createDto.OfficerName}", createDto.VehicleId, createDto.UserId);
+                _userService.ActivityLog($"Created Allocation for {createDto.Department} {createDto.Unit} {createDto.Office} {createDto.OfficerSerNo}{createDto.OfficerName}", createDto.VehicleId, createDto.UserId, "Allocation");
 
                 return Ok(new
                 {
@@ -309,7 +309,7 @@ namespace Vehicle_Information_System.Controllers
                     allocation.YearOfAllocation = updateDto.YearOfAllocation;
 
                 await _context.SaveChangesAsync();
-                _userService.ActivityLog($"Updated Allocation for {updateDto.Department} {updateDto.Unit} {updateDto.Office} {updateDto.OfficerSerNo}{updateDto.OfficerName}", updateDto.VehicleId, updateDto.UserId);
+                _userService.ActivityLog($"Updated Allocation for {updateDto.Department} {updateDto.Unit} {updateDto.Office} {updateDto.OfficerSerNo}{updateDto.OfficerName}", updateDto.VehicleId, updateDto.UserId,"Allocation");
 
                 return Ok(new { message = "Allocation updated successfully", allocation });
             }
@@ -367,7 +367,7 @@ namespace Vehicle_Information_System.Controllers
                 }
 
                 // Delete the allocation record from database
-                _userService.ActivityLog($"Deleted Allocation for {allocation.Office} {allocation.OfficerSerNo}{allocation.OfficerName}", allocation.VehicleId, allocation.UserId);
+                _userService.ActivityLog($"Deleted Allocation for {allocation.Office} {allocation.OfficerSerNo}{allocation.OfficerName}", allocation.VehicleId, allocation.UserId, "Allocation");
 
                 _context.Allocations.Remove(allocation);
                 await _context.SaveChangesAsync();

@@ -51,6 +51,9 @@ namespace Vehicle_Information_System.Models
         public virtual VehicleAssessment VehicleAssessment { get; set; } = null!;
 
         [ForeignKey("ApprovedByUserId")]
+
         public virtual User? ApprovedByUser { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

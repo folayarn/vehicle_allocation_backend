@@ -65,5 +65,7 @@ namespace Vehicle_Information_System.Models
 
         [ForeignKey("SparePartRequestId")]
         public virtual SparePartRequest? SparePartRequest { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

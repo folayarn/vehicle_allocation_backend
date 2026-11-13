@@ -263,7 +263,7 @@ namespace Vehicle_Information_System.Controllers
                 _context.SparePartRequests.Add(sparePartRequest);
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Created Spare Part Request {requestNumber}", createDto.VehicleId, createDto.UserId);
+                _userService.ActivityLog($"Created Spare Part Request {requestNumber}", createDto.VehicleId, createDto.UserId,"SparePartRequest");
 
                 return Ok(new
                 {
@@ -357,7 +357,7 @@ namespace Vehicle_Information_System.Controllers
                 await _context.SaveChangesAsync();
 
                 _userService.ActivityLog($"Updated Spare Part Request {sparePartRequest.RequestNumber}",
-                    sparePartRequest.VehicleId, sparePartRequest.UserId);
+                    sparePartRequest.VehicleId, sparePartRequest.UserId,"SparePartRequest");
 
                 // Return updated request with all items
                 var updatedRequest = await _context.SparePartRequests
@@ -415,7 +415,7 @@ namespace Vehicle_Information_System.Controllers
 
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Approved Spare Part Request {sparePartRequest.RequestNumber}", sparePartRequest.VehicleId, sparePartRequest.ApprovedByUserId ?? sparePartRequest.UserId);
+                _userService.ActivityLog($"Approved Spare Part Request {sparePartRequest.RequestNumber}", sparePartRequest.VehicleId, sparePartRequest.ApprovedByUserId ?? sparePartRequest.UserId,"SparePartRequest");
 
                 return Ok(new { message = "Spare part request approved successfully", status = sparePartRequest.Status });
             }
@@ -460,7 +460,7 @@ namespace Vehicle_Information_System.Controllers
 
                 await _context.SaveChangesAsync();
 
-                _userService.ActivityLog($"Rejected Spare Part Request {sparePartRequest.RequestNumber} - Reason: {rejectDto.RejectionReason}", sparePartRequest.VehicleId, sparePartRequest.UserId);
+                _userService.ActivityLog($"Rejected Spare Part Request {sparePartRequest.RequestNumber} - Reason: {rejectDto.RejectionReason}", sparePartRequest.VehicleId, sparePartRequest.UserId,"SparePartRequest");
 
                 return Ok(new { message = "Spare part request rejected successfully", status = sparePartRequest.Status });
             }
@@ -485,7 +485,7 @@ namespace Vehicle_Information_System.Controllers
                     return NotFound(new { message = $"Spare part request with ID {id} not found" });
                 }
 
-                _userService.ActivityLog($"Deleted Spare Part Request {sparePartRequest.RequestNumber}", sparePartRequest.VehicleId, sparePartRequest.UserId);
+                _userService.ActivityLog($"Deleted Spare Part Request {sparePartRequest.RequestNumber}", sparePartRequest.VehicleId, sparePartRequest.UserId,"SparePartRequest");
 
                 _context.SparePartRequests.Remove(sparePartRequest);
                 await _context.SaveChangesAsync();

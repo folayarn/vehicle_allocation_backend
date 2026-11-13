@@ -110,7 +110,7 @@ namespace Vehicle_Information_System.Controllers
 
             _context.Remarks.Add(newRemark);
             await _context.SaveChangesAsync();
-            _userService.ActivityLog($"Created Remarks {remark.RemarkText}", remark.VehicleId, remark.UserId);
+            _userService.ActivityLog($"Created Remarks {remark.RemarkText}", remark.VehicleId, remark.UserId,"Remarks");
 
 
 
@@ -147,7 +147,7 @@ namespace Vehicle_Information_System.Controllers
 
             _context.Entry(existingRemark).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            _userService.ActivityLog($"Updated Remarks {remark.RemarkText}", remark.VehicleId, remark.UserId);
+            _userService.ActivityLog($"Updated Remarks {remark.RemarkText}", remark.VehicleId, remark.UserId,"Remarks");
 
             return Ok(new {message= "Remark updated successfully."});
         }
@@ -164,7 +164,7 @@ namespace Vehicle_Information_System.Controllers
                 return NotFound($"Remark with ID {id} not found.");
             }
 
-            _userService.ActivityLog($"deleted Remarks {remark.RemarkText}", remark.VehicleId, remark.UserId);
+            _userService.ActivityLog($"deleted Remarks {remark.RemarkText}", remark.VehicleId, remark.UserId,"Remarks");
 
             _context.Remarks.Remove(remark);
             await _context.SaveChangesAsync();

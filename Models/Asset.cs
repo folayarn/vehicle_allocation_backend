@@ -20,6 +20,7 @@ namespace Vehicle_Information_System.Models
 
         [StringLength(50)]
         public string? Zone { get; set; }
+        public Guid? UserId { get; set; }
 
         [StringLength(200)]
         public string? Command { get; set; }
@@ -82,5 +83,7 @@ namespace Vehicle_Information_System.Models
 
         [Column(TypeName = "text")]  // Unlimited text for remarks
         public string? InsurancePolicyNo { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

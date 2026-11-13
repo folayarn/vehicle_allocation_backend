@@ -17,6 +17,8 @@ namespace Vehicle_Information_System.Models
         public virtual Barrack Barrack { get; set; }
         public virtual ICollection<Allocation> Allocations { get; set; }
         public virtual ICollection<MaintenanceRequest> MaintenanceRequests { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
 
     }
 }

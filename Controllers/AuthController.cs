@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -206,6 +207,8 @@ namespace Vehicle_Information_System.Controllers
 
                     // Save refresh token to database
                     await SaveRefreshToken(user, userType, refreshToken);
+                    _userService.ActivityLog($"logged in", Id, Id, "User");
+
 
                     _logger.LogInformation("User logged in successfully: {Email} ({UserType})", otpVerification.Email, userType);
 

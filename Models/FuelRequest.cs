@@ -77,8 +77,10 @@ namespace Vehicle_Information_System.Models
 
         [ForeignKey("UserId")]
         public virtual User User { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
 
-       
+
     }
 
   

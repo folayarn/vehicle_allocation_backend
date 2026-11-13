@@ -11,5 +11,6 @@
         public string? Command { get; set; }
         public string Email { get; set; }
         public string MaritalStatus { get; set; }
+
     }
 }

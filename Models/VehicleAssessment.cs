@@ -18,6 +18,7 @@ namespace Vehicle_Information_System.Models
         [Column(TypeName = "text")]
         public string? ChassisNumber { get; set; }
         
+        public Guid? UserId { get; set; }
 
         [Column(TypeName = "text")]
         public string? VehicleTypeModel { get; set; }
@@ -78,8 +79,9 @@ namespace Vehicle_Information_System.Models
         public virtual ICollection<MaintenanceReport> MaintenanceReports { get; set; } = null!;
         public virtual ICollection<LogBook> LogBooks { get; set; } = null!;
         public virtual ICollection<IncidentReport> IncidentReports { get; set; } = null!;
-        public virtual ICollection<ActivityLog> ActivityLogs { get; set; } = null!;
         public virtual ICollection<FuelRequest> FuelRequests { get; set; } = null!;
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     }

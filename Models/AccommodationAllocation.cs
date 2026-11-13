@@ -1,4 +1,5 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿using Microsoft.VisualBasic;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Vehicle_Information_System.Models
@@ -17,6 +18,9 @@ namespace Vehicle_Information_System.Models
 
         [Required]
         public Guid BarracksId { get; set; }
+
+        [Required]
+        public Guid ActivityLogId { get; set; }
 
         public DateTime AllocationDate { get; set; } = DateTime.UtcNow;
 
@@ -41,6 +45,9 @@ namespace Vehicle_Information_System.Models
 
         [ForeignKey("BarracksId")]
         public virtual Barrack Barracks { get; set; }
+
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs  { get; set; }
 
     }
 }

@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using DocumentFormat.OpenXml.Spreadsheet;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Vehicle_Information_System.Dtos;
 using Vehicle_Information_System.Models;
@@ -11,10 +12,12 @@ namespace Vehicle_Information_System.Controllers
     public class AssetsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserService _userService;
 
-        public AssetsController(ApplicationDbContext context)
+        public AssetsController(ApplicationDbContext context, UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         // GET: api/Assets/get-all/{UserId}
@@ -444,6 +447,8 @@ namespace Vehicle_Information_System.Controllers
             _context.Assets.Add(asset);
             await _context.SaveChangesAsync();
 
+            _userService.ActivityLog($"Created Asset {asset.AssetName}", asset.Id, asset.UserId, "Asset");
+
             return CreatedAtAction(nameof(GetAsset), new { id = asset.Id }, asset);
         }
 
@@ -492,13 +497,16 @@ namespace Vehicle_Information_System.Controllers
             _context.Update(existingAsset);
 
             await _context.SaveChangesAsync();
+            _userService.ActivityLog($"Updated Asset {existingAsset.AssetName}", existingAsset.Id, existingAsset.UserId, "Asset");
+
+
 
             return Ok(existingAsset);
         }
 
         // PATCH: api/Assets/5/Status
-        [HttpPatch("{id}/Status")]
-        public async Task<IActionResult> UpdateAssetStatus(Guid id, [FromBody] string status)
+        [HttpPatch("{id}/Status/{userId}")]
+        public async Task<IActionResult> UpdateAssetStatus(Guid id, Guid userId, [FromBody] string status)
         {
             var asset = await _context.Assets.FindAsync(id);
             if (asset == null)
@@ -510,12 +518,15 @@ namespace Vehicle_Information_System.Controllers
             asset.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
 
+            _userService.ActivityLog($"Changed Asset Status to {asset.AssetStatus} for {asset.AssetName}", asset.Id, userId, "Asset");
+
+
             return Ok(new { id = asset.Id, assetStatus = asset.AssetStatus });
         }
 
         // PATCH: api/Assets/5/Condition
-        [HttpPatch("{id}/Condition")]
-        public async Task<IActionResult> UpdateAssetCondition(Guid id, [FromBody] string condition)
+        [HttpPatch("{id}/Condition/{userId}")]
+        public async Task<IActionResult> UpdateAssetCondition(Guid id, Guid userId, [FromBody] string condition)
         {
             var asset = await _context.Assets.FindAsync(id);
             if (asset == null)
@@ -526,13 +537,15 @@ namespace Vehicle_Information_System.Controllers
             asset.Condition = condition;
             asset.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            _userService.ActivityLog($"Changed Asset Condition to {asset.Condition} for {asset.AssetName}", asset.Id, userId, "Asset");
+
 
             return Ok(new { id = asset.Id, condition = asset.Condition });
         }
 
         // DELETE: api/Assets/5 (Soft Delete)
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteAsset(Guid id)
+        [HttpDelete("{id}/{userId}")]
+        public async Task<IActionResult> DeleteAsset(Guid id, Guid userId)
         {
             var asset = await _context.Assets.FindAsync(id);
             if (asset == null)
@@ -544,13 +557,15 @@ namespace Vehicle_Information_System.Controllers
             // Currently just saving changes as the record remains but can be marked with an IsDeleted flag
             asset.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+            _userService.ActivityLog($"deleted Asset {asset.AssetName} ", asset.Id, userId, "Asset");
+
 
             return Ok(new { message = $"Asset '{asset.AssetName}' has been deleted" });
         }
 
         // DELETE: api/Assets/5/Permanent
-        [HttpDelete("{id}/Permanent")]
-        public async Task<IActionResult> PermanentDeleteAsset(Guid id)
+        [HttpDelete("{id}/Permanent/{userId}")]
+        public async Task<IActionResult> PermanentDeleteAsset(Guid id, Guid userId)
         {
             var asset = await _context.Assets.FindAsync(id);
             if (asset == null)
@@ -560,6 +575,8 @@ namespace Vehicle_Information_System.Controllers
 
             _context.Assets.Remove(asset);
             await _context.SaveChangesAsync();
+            _userService.ActivityLog($"deleted Asset {asset.AssetName} ", asset.Id, userId, "Asset");
+
 
             return Ok(new { message = $"Asset '{asset.AssetName}' has been permanently deleted" });
         }

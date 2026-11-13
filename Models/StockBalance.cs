@@ -25,5 +25,7 @@ namespace Vehicle_Information_System.Models
 
         [ForeignKey("StoreId")]
         public virtual Store Store { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

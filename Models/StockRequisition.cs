@@ -48,5 +48,7 @@ namespace Vehicle_Information_System.Models
 
         public virtual ICollection<StockRequisition> RequisitionItems { get; set; }
         public virtual StockIssue StockIssue { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

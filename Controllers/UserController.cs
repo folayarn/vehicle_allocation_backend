@@ -30,6 +30,52 @@ namespace Vehicle_Information_System.Controllers
             _logger = logger;
         }
 
+       
+
+        [HttpGet("activity-logs")]
+        public async Task<IActionResult> GetActivityLogs([FromQuery] string? search, [FromQuery] DateTime? dateFrom, [FromQuery] DateTime? dateTo, [FromQuery] int? pageNumber, [FromQuery] int? pageSize) { 
+            try
+            {
+                // Fetch activity logs with optional filtering
+
+                var query = _context.ActivityLogs.AsQueryable();
+
+                if (!string.IsNullOrEmpty(search))
+                {
+                    query = query.Where(log => log.Action.Contains(search) || log.TargetType.Contains(search) || log.FullName.Contains(search));
+                }
+
+                if (dateFrom.HasValue)
+                {
+                    query = query.Where(log => log.CreatedAt >= dateFrom.Value);
+                }
+
+                if (dateTo.HasValue)
+                {
+                    query = query.Where(log => log.CreatedAt <= dateTo.Value);
+                }
+
+                if (pageNumber.HasValue) {
+                    int size = pageSize ?? 10; // Default page size if not provided
+                    query = query.Skip((pageNumber.Value - 1) * size).Take(size);
+                }
+                if (pageSize.HasValue) {
+                    int size = pageSize.Value;
+                    query = query.Take(size);
+                }
+
+                var logs = await query
+                    .OrderByDescending(log => log.CreatedAt)
+                    .ToListAsync();
+                return Ok(new { data = logs });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error fetching activity logs");
+                return StatusCode(500, new { message = $"An error occurred while fetching activity logs.{ex}" });
+            }
+        }
+
         [HttpGet("user/{id}")]
         public async Task<IActionResult> FetchUser([FromRoute] string id)
         {
@@ -221,6 +267,8 @@ namespace Vehicle_Information_System.Controllers
 
                 _logger.LogInformation("User registered successfully: {Email} ({UserType})", userDto.Email, userDto.UserType);
 
+                _userService.ActivityLog($"User registered: {userDto.Email} ({userDto.UserType})", Guid.Empty, Guid.Empty,"User");
+
                 return Ok(new { message = "User successfully registered", email = userDto.Email, userType = userDto.UserType });
             }
             catch (DbUpdateException dbEx)
@@ -292,6 +340,7 @@ namespace Vehicle_Information_System.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+                _userService.ActivityLog($"User updated: {userDto.Email} ({userDto.UserType})", Guid.Empty, Guid.Empty,"User");
 
                 return Ok(new { message = "User updated successfully." });
             }
@@ -320,8 +369,10 @@ namespace Vehicle_Information_System.Controllers
 
                 await UpdateUserInContext(user,type);
                 await _context.SaveChangesAsync();
+                _userService.ActivityLog($"User suspended: {user.Email} ({type.UserType})", Guid.Empty, Guid.Empty,"User");
 
                 return Ok(new { message = "User successfully suspended." });
+
             }
             catch (Exception ex)
             {
@@ -344,6 +395,8 @@ namespace Vehicle_Information_System.Controllers
                 await UpdateUserInContext(user,type);
                 await _context.SaveChangesAsync();
 
+                _userService.ActivityLog($"User unsuspended: {user.Email} ({type.UserType})", Guid.Empty, Guid.Empty,"User");
+
                 return Ok(new { message = "User successfully activated." });
             }
             catch (Exception ex)
@@ -364,7 +417,7 @@ namespace Vehicle_Information_System.Controllers
 
                 await RemoveUserFromContext(user, type);
                 await _context.SaveChangesAsync();
-
+                _userService.ActivityLog($"User deleted: {user.Email} ({type.UserType})", Guid.Empty, Guid.Empty,"User");
                 return Ok(new { message = "User successfully deleted." });
             }
             catch (Exception ex)

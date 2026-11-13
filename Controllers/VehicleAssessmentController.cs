@@ -1,4 +1,5 @@
 ﻿using DocumentFormat.OpenXml.InkML;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
@@ -16,10 +17,12 @@ namespace Vehicle_Information_System.Controllers
     public class VehicleAssessmentController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserService _userService;
 
-        public VehicleAssessmentController(ApplicationDbContext context)
+        public VehicleAssessmentController(ApplicationDbContext context, UserService userService)
         {
             _context = context;
+            _userService = userService;
         }
 
         [HttpGet("get-dash/{UserId}")]
@@ -107,6 +110,7 @@ namespace Vehicle_Information_System.Controllers
                 .Include(r=>r.SparePartRequests)
                 .Include(r=>r.MaintenanceRequests)
                 .Include(r=>r.Remarks)
+                .Include(r=>r.ActivityLogs)
                 .Select(v => new 
                 {
                     
@@ -456,6 +460,58 @@ namespace Vehicle_Information_System.Controllers
         }
 
 
+        [HttpGet("activitylogs")]
+        public async Task<ActionResult<IEnumerable<ActivityLog>>> GetActivityLogs([FromQuery] ServerTableRequest request)
+        {
+            var query = _context.ActivityLogs.AsQueryable();
+            // Apply search functionality
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                query = query.Where(a =>
+                    a.Action.ToLower().Contains(request.Search.ToLower()) ||
+                    a.FullName.ToString().ToLower().Contains(request.Search.ToLower()) ||
+                    a.TargetType.ToLower().Contains(request.Search.ToLower())
+                );
+            }
+            // Apply date range filter
+            if (request.StartDate.HasValue)
+            {
+                query = query.Where(a => a.CreatedAt >= request.StartDate.Value);
+            }
+            if (request.EndDate.HasValue)
+            {
+                var endDate = request.EndDate.Value.Date.AddDays(1);
+                query = query.Where(a => a.CreatedAt < endDate);
+            }
+            // Apply sorting
+            if (!string.IsNullOrWhiteSpace(request.SortBy))
+            {
+                query = request.SortOrder?.ToLower() == "desc"
+                    ? query.OrderByDescending(r => EF.Property<object>(r, request.SortBy))
+                    : query.OrderBy(r => EF.Property<object>(r, request.SortBy));
+            }
+            else
+            {
+                query = query.OrderByDescending(a => a.CreatedAt);
+            }
+            // Apply pagination
+            var totalRecords = await query.CountAsync();
+            var activityLogs = await query
+                .Skip((request.Page - 1) * request.PageSize)
+                .Take(request.PageSize)
+                .ToListAsync();
+            return Ok(new
+            {
+                data = activityLogs,
+                totalCount = totalRecords,
+                page = request.Page,
+                pageSize = request.PageSize,
+                totalPages = (int)Math.Ceiling(totalRecords / (double)request.PageSize)
+            });
+        }
+
+
+
         // GET: api/VehicleAssessment
         [HttpGet("get-all/allocated/{UserId}")]
         public async Task<ActionResult<IEnumerable<VehicleAssessment>>> GetAllocatedVehicleAssessments([FromRoute] Guid UserId, [FromQuery] ServerTableRequest request)
@@ -774,6 +830,7 @@ namespace Vehicle_Information_System.Controllers
                     InitialMileage = vehicleAssessment.InitialMileage,
                     CurrentMileage = vehicleAssessment.InitialMileage,
                     Command = vehicleAssessment.Command,
+                    UserId = vehicleAssessment.UserId,
                     Zone = vehicleAssessment.Zone,
                     Comments = vehicleAssessment.Comments,
                     Remark = vehicleAssessment.Remark,
@@ -788,6 +845,9 @@ namespace Vehicle_Information_System.Controllers
 
                 _context.VehicleAssessments.Add(vehicle);
                 await _context.SaveChangesAsync();
+
+                _userService.ActivityLog($"Created Vehicle Data {vehicle.Id} {vehicle.ChassisNumber} ", vehicleAssessment.UserId,vehicle.Id,"VehicleAssessment");
+
 
                 return Ok(new
                 {
@@ -982,6 +1042,9 @@ namespace Vehicle_Information_System.Controllers
                 _context.Update(existingAssessment);
                 await _context.SaveChangesAsync();
 
+                _userService.ActivityLog($"Updated Vehicle Data {existingAssessment.Id} {existingAssessment.ChassisNumber} ", vehicleAssessment.UserId, existingAssessment.Id, "VehicleAssessment");
+
+
                 var response = new
                 {
                     message = "Vehicle assessment updated successfully.",
@@ -1028,8 +1091,8 @@ namespace Vehicle_Information_System.Controllers
        
        
         // DELETE: api/VehicleAssessment/{id}
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteVehicleAssessment(Guid id)
+        [HttpDelete("{id}/{userId}")]
+        public async Task<IActionResult> DeleteVehicleAssessment(Guid id, Guid userId)
         {
             var vehicleAssessment = await _context.VehicleAssessments.FindAsync(id);
             if (vehicleAssessment == null)
@@ -1039,6 +1102,10 @@ namespace Vehicle_Information_System.Controllers
 
             _context.VehicleAssessments.Remove(vehicleAssessment);
             await _context.SaveChangesAsync();
+
+            _userService.ActivityLog($"Deleted Vehicle Data {vehicleAssessment.Id} {vehicleAssessment.ChassisNumber} ", userId, vehicleAssessment.Id, "VehicleAssessment");
+
+
 
             return Ok(new { message = "Vehicle assessment deleted successfully." });
         }

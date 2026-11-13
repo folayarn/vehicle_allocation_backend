@@ -112,7 +112,7 @@ namespace Vehicle_Information_System.Controllers
             await _context.SaveChangesAsync();
 
 
-            _userService.ActivityLog($"Created -Driver for {driver.SerNo} {driver.Name}", driver.VehicleId, driver.UserId);
+            _userService.ActivityLog($"Created -Driver for {driver.SerNo} {driver.Name}", driver.VehicleId, driver.UserId,"Driver");
 
 
             return Ok(new {message ="Driver created successfully"});
@@ -167,7 +167,7 @@ namespace Vehicle_Information_System.Controllers
 
             _context.Entry(existingDriver).State = EntityState.Modified;
             await _context.SaveChangesAsync();
-            _userService.ActivityLog($"Updated -Driver for {driver.SerNo} {driver.Name}", driver.VehicleId, driver.UserId);
+            _userService.ActivityLog($"Updated -Driver for {driver.SerNo} {driver.Name}", driver.VehicleId, driver.UserId,"Driver");
 
             return Ok(new {message="updated"});
         }
@@ -183,7 +183,7 @@ namespace Vehicle_Information_System.Controllers
                 return NotFound($"Driver with ID {id} not found.");
             }
 
-            _userService.ActivityLog($"Driver -Driver {driver.SerNo} {driver.Name}", driver.VehicleId, driver.UserId);
+            _userService.ActivityLog($"Deleted -Driver {driver.SerNo} {driver.Name}", driver.VehicleId, driver.UserId,"Driver");
 
             _context.Drivers.Remove(driver);
             await _context.SaveChangesAsync();

@@ -38,5 +38,7 @@ namespace Vehicle_Information_System.Models
       
 
         public virtual ICollection<StockBalance> StockBalances { get; set; }
+        [ForeignKey("Id")]
+        public virtual ICollection<ActivityLog> ActivityLogs { get; set; }
     }
 }

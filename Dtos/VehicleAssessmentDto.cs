@@ -13,6 +13,7 @@ namespace Vehicle_Information_System.Dtos
         public decimal InitialMileage { get; set; }
         public string? Comments { get; set; }
         public string? Remark { get; set; }
+        public Guid UserId { get; set; }
         public string? EngineNumber { get; set; }
         public string? VehicleLocation { get; set; }
 

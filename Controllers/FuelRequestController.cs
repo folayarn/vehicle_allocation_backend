@@ -20,12 +20,14 @@ namespace Vehicle_Information_System.Controllers
     public class FuelRequestController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly UserService _userService;
         private readonly ILogger<FuelRequestController> _logger;
 
-        public FuelRequestController(ApplicationDbContext context, ILogger<FuelRequestController> logger)
+        public FuelRequestController(ApplicationDbContext context, ILogger<FuelRequestController> logger, UserService userService)
         {
             _context = context;
             _logger = logger;
+            _userService = userService;
         }
 
         /// <summary>
@@ -86,6 +88,8 @@ namespace Vehicle_Information_System.Controllers
 
                 _logger.LogInformation("Fuel request created: {RequestNumber} for vehicle {VehicleId}",
                     fuelRequest.RequestNumber, request.VehicleId);
+
+                _userService.ActivityLog($"Created -FuelRequest {fuelRequest.RequestNumber}", fuelRequest.VehicleId, fuelRequest.UserId,"FuelRequest");
 
                 return Ok(new { message = "Request created successfully" });
             }
@@ -294,6 +298,7 @@ namespace Vehicle_Information_System.Controllers
                 fuelRequest.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
+                _userService.ActivityLog($"Updated -FuelRequest {fuelRequest.RequestNumber}", fuelRequest.VehicleId, fuelRequest.UserId,"FuelRequest");
 
                 _logger.LogInformation("Fuel request {RequestNumber} updated", fuelRequest.RequestNumber);
 
@@ -345,6 +350,8 @@ namespace Vehicle_Information_System.Controllers
                 fuelRequest.UpdatedAt = DateTime.UtcNow;
                 await _context.SaveChangesAsync();
 
+                _userService.ActivityLog($"Approved -FuelRequest {fuelRequest.RequestNumber}", fuelRequest.VehicleId, fuelRequest.UserId,"FuelRequest");
+
                 _logger.LogInformation("Fuel request {RequestNumber} {Status} by user {UserId}",
                     fuelRequest.RequestNumber, fuelRequest.Status, approverId);
 
@@ -394,6 +401,9 @@ namespace Vehicle_Information_System.Controllers
 
                 await _context.SaveChangesAsync();
 
+
+                _userService.ActivityLog($"Dispensed -FuelRequest {fuelRequest.RequestNumber}", fuelRequest.VehicleId, fuelRequest.UserId,"FuelRequest");
+
                 _logger.LogInformation("Fuel request {RequestNumber} dispensed by user {UserId}",
                     fuelRequest.RequestNumber, dispenserId);
 
@@ -437,6 +447,8 @@ namespace Vehicle_Information_System.Controllers
                 fuelRequest.UpdatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
+
+                _userService.ActivityLog($"Cancelled -FuelRequest {fuelRequest.RequestNumber}", fuelRequest.VehicleId, fuelRequest.UserId,"FuelRequest");
 
                 _logger.LogInformation("Fuel request {RequestNumber} cancelled by user {UserId}",
                     fuelRequest.RequestNumber);
@@ -520,6 +532,7 @@ namespace Vehicle_Information_System.Controllers
                 }
                 _context.FuelRequests.Remove(fuelRequest);
                 await _context.SaveChangesAsync();
+                _userService.ActivityLog($"Deleted -FuelRequest {fuelRequest.RequestNumber}", fuelRequest.VehicleId, fuelRequest.UserId,"FuelRequest");
                 _logger.LogInformation("Fuel request {RequestNumber} deleted", fuelRequest.RequestNumber);
                 return Ok(new { message = "Fuel request deleted successfully" });
             }
